@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brigine.Core", "src\Brigine.Core\Brigine.Core.csproj", "{2C319141-5CC6-422C-9BB1-DB1CD930E31D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brigine.Player", "src\Brigine.Player\Brigine.Player.csproj", "{DAC018E6-1C34-4601-8167-2364E9AAE718}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brigine.Unity", "src\Brigine.Unity\Brigine.Unity.csproj", "{798F6149-4B44-40D3-97AD-F979A71EC953}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brigine.Godot", "src\Brigine.Godot\Brigine.Godot.csproj", "{DFFE083E-6C35-4E3C-8838-6DA8FAE8B663}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2C319141-5CC6-422C-9BB1-DB1CD930E31D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C319141-5CC6-422C-9BB1-DB1CD930E31D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C319141-5CC6-422C-9BB1-DB1CD930E31D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C319141-5CC6-422C-9BB1-DB1CD930E31D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DAC018E6-1C34-4601-8167-2364E9AAE718}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DAC018E6-1C34-4601-8167-2364E9AAE718}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DAC018E6-1C34-4601-8167-2364E9AAE718}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DAC018E6-1C34-4601-8167-2364E9AAE718}.Release|Any CPU.Build.0 = Release|Any CPU
+		{798F6149-4B44-40D3-97AD-F979A71EC953}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{798F6149-4B44-40D3-97AD-F979A71EC953}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{798F6149-4B44-40D3-97AD-F979A71EC953}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{798F6149-4B44-40D3-97AD-F979A71EC953}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DFFE083E-6C35-4E3C-8838-6DA8FAE8B663}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFFE083E-6C35-4E3C-8838-6DA8FAE8B663}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFFE083E-6C35-4E3C-8838-6DA8FAE8B663}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFFE083E-6C35-4E3C-8838-6DA8FAE8B663}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

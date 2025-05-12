@@ -1,0 +1,12 @@
+{
+  "type": "",
+  "components": {
+    "Transform": {
+      "position": [0, 0.5, 0],
+      "rotation": [0, 0, 0, 1]
+    },
+    "Rotate": {
+      "speed": 90.0
+    }
+  }
+}

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Brigine.Core
 {
-    public class DefaultFunctionProvider : IFunctionProvider
+    internal class DefaultFunctionProvider : IFunctionProvider
     {
         private readonly Dictionary<Type, object> _serviceCache = new();
 
@@ -17,9 +17,9 @@ namespace Brigine.Core
             }
 
             T service = null;
-            if (type == typeof(IAssetLoader))
+            if (type == typeof(IAssetSerializer))
             {
-                service = new DefaultAssetLoader() as T;
+                service = new UsdNetAssetSerializer() as T;
             }
             else if (type == typeof(ISceneService))
             {
@@ -40,21 +40,6 @@ namespace Brigine.Core
             }
 
             return service;
-        }
-
-        private class DefaultAssetLoader : IAssetLoader
-        {
-            public string LoadAsset(string assetPath)
-            {
-                try
-                {
-                    return System.IO.File.ReadAllText(assetPath);
-                }
-                catch
-                {
-                    return null;
-                }
-            }
         }
 
         private class DefaultSceneService : ISceneService

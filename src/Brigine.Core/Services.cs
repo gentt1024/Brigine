@@ -3,9 +3,9 @@ using System.Collections.Generic;
 
 namespace Brigine.Core
 {
-    public interface IAssetLoader
+    public interface IAssetSerializer
     {
-        string LoadAsset(string assetPath);
+        object Load(string assetPath);
     }
 
     public interface ISceneService

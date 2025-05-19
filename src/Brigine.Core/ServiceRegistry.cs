@@ -5,29 +5,29 @@ namespace Brigine.Core
 {
     public class ServiceRegistry
     {
-        private readonly Dictionary<Type, object> _services = new();
         private readonly Dictionary<Type, IFunctionProvider> _providers = new();
-
-        public void RegisterProvider<T>(T provider) where T : IFunctionProvider
+        private readonly DefaultFunctionProvider _defaultFunctionProvider = new DefaultFunctionProvider();
+        
+        public void RegisterFunctionProvider(IFunctionProvider provider)
         {
-            _providers[typeof(T)] = provider;
+            if (provider == null)
+                throw new ArgumentNullException(nameof(provider));
+                
+            Type providerType = provider.GetType();
+            _providers[providerType] = provider;
         }
 
         public T GetService<T>() where T : class
         {
-            if (_services.TryGetValue(typeof(T), out var service))
-                return (T)service;
-
             foreach (var provider in _providers.Values)
             {
-                service = provider.GetService<T>();
+                var service = provider.GetService<T>();
                 if (service != null)
                 {
-                    _services[typeof(T)] = service;
-                    return (T)service;
+                    return service;
                 }
             }
-            return (T)(_services[typeof(T)] = _providers[typeof(DefaultFunctionProvider)]?.GetService<T>());
+            return _defaultFunctionProvider.GetService<T>();
         }
     }
 

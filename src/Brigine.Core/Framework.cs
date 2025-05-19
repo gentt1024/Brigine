@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Brigine.Core
 {
@@ -6,44 +7,60 @@ namespace Brigine.Core
     {
         private readonly ServiceRegistry _registry;
         private readonly AssetManager _assetManager;
-        private readonly ILogger _logger;
 
-        public Framework(ServiceRegistry registry)
+        public ServiceRegistry Services => _registry;
+        public ILogger Logger => Services.GetService<ILogger>();
+
+        public void Start()
         {
-            this._registry = registry ?? throw new ArgumentNullException(nameof(registry));
-            this._assetManager = new AssetManager(registry);
-            this._logger = registry.GetService<ILogger>();
-
-            var updateService = registry.GetService<IUpdateService>();
+            var updateService = _registry.GetService<IUpdateService>();
             if (updateService == null)
             {
-                _logger.Error("IUpdateService not found in ServiceRegistry");
+                Logger.Error("IUpdateService not found in ServiceRegistry");
                 throw new InvalidOperationException("IUpdateService is required");
             }
             updateService.RegisterUpdate(Update);
-
-            _logger.Info("Framework initialized");
         }
 
-        public void LoadScene(string assetPath)
+        public Framework()
         {
-            _logger.Info($"Loading scene from {assetPath}");
-            var entity = _assetManager.LoadAsset(assetPath);
-            if (entity == null)
+            _registry = new ServiceRegistry();
+            _assetManager = new AssetManager(_registry);
+            Logger.Info("Framework initialized");
+        }
+
+        public void LoadAsset(string assetPath)
+        {
+            Logger.Info($"Loading scene from {assetPath}");
+            var asset = _assetManager.LoadAsset(assetPath);
+            if (asset == null)
             {
-                _logger.Error($"Failed to load asset: {assetPath}");
+                Logger.Error($"Failed to load asset: {assetPath}");
                 return;
             }
 
             var sceneService = _registry.GetService<ISceneService>();
             if (sceneService == null)
             {
-                _logger.Error("ISceneService not found in ServiceRegistry");
+                Logger.Error("ISceneService not found in ServiceRegistry");
                 return;
             }
 
-            sceneService.AddToScene(entity, null);
-            _logger.Info($"Scene loaded: {assetPath}");
+            if (asset is Entity entityAsset)
+            {
+                Stack<Entity> entities = new();
+                entities.Push(entityAsset);
+                while (entities.Count > 0)
+                {
+                    var entity = entities.Pop();
+                    sceneService.AddToScene(entity, entity.Parent);
+                    foreach (var child in entity.Children)
+                    {
+                        entities.Push(child);
+                    }
+                }
+                Logger.Info($"Entity loaded: {assetPath}");
+            }
         }
 
         private void Update(float delta)
@@ -51,15 +68,16 @@ namespace Brigine.Core
             var sceneService = _registry.GetService<ISceneService>();
             if (sceneService == null)
             {
-                _logger.Warn("ISceneService not found during update");
+                Logger.Warn("ISceneService not found during update");
                 return;
             }
 
             foreach (var entity in sceneService.GetEntities())
             {
                 entity.Update(delta);
+                sceneService.UpdateTransform(entity, entity.Transform);
             }
-            _logger.Debug($"Updating scene with delta: {delta}");
+            // Logger.Debug($"Updating scene with delta: {delta}");
         }
     }
 }

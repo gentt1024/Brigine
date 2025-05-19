@@ -1,0 +1,18 @@
+#usda 1.0
+(
+    defaultPrim = "Cube"
+    upAxis = "Y"
+)
+
+def Xform "Cube" (
+    kind = "component"
+)
+{
+    def Mesh "CubeMesh"
+    {
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 2, 3, 5, 4, 7, 6, 4, 0, 3, 7, 1, 5, 6, 2, 3, 2, 6, 7, 4, 5, 1, 0]
+        point3f[] points = [(-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1), (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1)]
+        color3f[] primvars:displayColor = [(1, 0, 0)]
+    }
+} 

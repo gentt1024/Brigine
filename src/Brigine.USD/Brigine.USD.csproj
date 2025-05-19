@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;netstandard2.1</TargetFrameworks>
+        <ImplicitUsings>disable</ImplicitUsings>
+        <Nullable>disable</Nullable>
+        <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+        <PackageOutputPath>$(SolutionDir)nupkgs</PackageOutputPath>
+        <PackageId>Brigine.USD</PackageId>
+        <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <Version>1.0.1</Version>
+        <Authors>gentt1024</Authors>
+    </PropertyGroup>
+    <ItemGroup>
+        <None Include="USD.NET.dll">
+            <PackagePath>
+                lib\net8.0\;
+                lib\netstandard2.1\
+            </PackagePath>
+            <Pack>true</Pack>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="Windows\lib\**\*">
+            <PackagePath>runtimes/win-x64/native</PackagePath>
+            <Pack>true</Pack>
+        </Content>
+        <Content Include="Windows\usd\**\*">
+            <PackagePath>runtimes/win-x64/native\usd</PackagePath>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <Pack>true</Pack>
+        </Content>
+
+        <Content Include="Linux\lib\**\*">
+            <PackagePath>runtimes/linux-x64/native</PackagePath>
+            <Pack>true</Pack>
+        </Content>
+        <Content Include="Linux\usd\**\*">
+            <PackagePath>runtimes/linux-x64/native\usd</PackagePath>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <Pack>true</Pack>
+        </Content>
+    </ItemGroup>
+</Project>

@@ -19,7 +19,6 @@ namespace Brigine.Core.Components
             var t = Entity.Transform;
             t.Rotation = Quaternion.CreateFromYawPitchRoll(Angle * MathF.PI / 180f, 0, 0);
             Entity.Transform = t;
-            Entity.Registry.GetService<ILogger>().Info($"RotateComponent.Angle:{Angle}");
         }
     }
 }

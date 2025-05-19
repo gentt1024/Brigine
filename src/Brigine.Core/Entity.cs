@@ -6,13 +6,14 @@ namespace Brigine.Core
     {
         public Transform Transform { get; set; } = Transform.Identity;
         private readonly List<IComponent> _components = new();
-        private readonly ServiceRegistry _registry;
-
-        public ServiceRegistry Registry => _registry;
-
-        public Entity(ServiceRegistry registry, Entity parent = null)
+        public IReadOnlyList<IComponent> Components => _components;
+        public Entity Parent;
+        public List<Entity> Children = new();
+        
+        public Entity(Entity parent = null)
         {
-            _registry = registry;
+            Parent = parent;
+            Parent?.Children.Add(this);
         }
 
         public void AddComponent(IComponent component)
@@ -21,15 +22,24 @@ namespace Brigine.Core
             component.Entity = this;
         }
 
+        public T GetComponent<T>() where T : class, IComponent
+        {
+            foreach (var component in _components)
+            {
+                if (component is T typedComponent)
+                {
+                    return typedComponent;
+                }
+            }
+            return null;
+        }
+
         public void Update(float delta)
         {
             foreach (var comp in _components)
             {
                 comp.Update(delta);
             }
-
-            var sceneService = _registry.GetService<ISceneService>();
-            sceneService?.UpdateTransform(this, Transform);
         }
     }
 

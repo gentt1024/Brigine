@@ -8,6 +8,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brigine.Unity", "src\Brigin
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brigine.Godot", "src\Brigine.Godot\Brigine.Godot.csproj", "{DFFE083E-6C35-4E3C-8838-6DA8FAE8B663}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Private", "Private", "{A18D9826-8309-40EE-9BB4-A7DA921F3CF6}"
+	ProjectSection(SolutionItems) = preProject
+		nuget.config = nuget.config
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brigine.USD", "src\Brigine.USD\Brigine.USD.csproj", "{CFE1B61C-5D8A-4709-AB8F-9F7A0E076DA5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +37,9 @@ Global
 		{DFFE083E-6C35-4E3C-8838-6DA8FAE8B663}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DFFE083E-6C35-4E3C-8838-6DA8FAE8B663}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DFFE083E-6C35-4E3C-8838-6DA8FAE8B663}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CFE1B61C-5D8A-4709-AB8F-9F7A0E076DA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CFE1B61C-5D8A-4709-AB8F-9F7A0E076DA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CFE1B61C-5D8A-4709-AB8F-9F7A0E076DA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CFE1B61C-5D8A-4709-AB8F-9F7A0E076DA5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

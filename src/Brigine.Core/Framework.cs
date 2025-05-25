@@ -5,28 +5,58 @@ namespace Brigine.Core
 {
     public class Framework
     {
-        private readonly ServiceRegistry _registry;
+        private readonly IServiceRegistry _serviceRegistry;
         private readonly AssetManager _assetManager;
+        private bool _isRunning = false;
 
-        public ServiceRegistry Services => _registry;
+        public IServiceRegistry Services => _serviceRegistry;
         public ILogger Logger => Services.GetService<ILogger>();
+        public bool IsRunning => _isRunning;
+
+        public Framework(IServiceRegistry serviceRegistry = null)
+        {
+            _serviceRegistry = serviceRegistry ?? new ServiceRegistry();
+            
+            // 注册默认服务
+            _serviceRegistry.RegisterDefaultServices();
+            
+            _assetManager = new AssetManager(_serviceRegistry);
+            Logger.Info("Framework initialized");
+        }
 
         public void Start()
         {
-            var updateService = _registry.GetService<IUpdateService>();
+            if (_isRunning)
+            {
+                Logger.Warn("Framework is already running");
+                return;
+            }
+
+            var updateService = _serviceRegistry.GetService<IUpdateService>();
             if (updateService == null)
             {
                 Logger.Error("IUpdateService not found in ServiceRegistry");
                 throw new InvalidOperationException("IUpdateService is required");
             }
+            
             updateService.RegisterUpdate(Update);
+            _isRunning = true;
+            Logger.Info("Framework started");
         }
 
-        public Framework()
+        public void Stop()
         {
-            _registry = new ServiceRegistry();
-            _assetManager = new AssetManager(_registry);
-            Logger.Info("Framework initialized");
+            if (!_isRunning)
+            {
+                Logger.Warn("Framework is not running");
+                return;
+            }
+
+            var updateService = _serviceRegistry.GetService<IUpdateService>();
+            updateService?.Stop();
+            
+            _isRunning = false;
+            Logger.Info("Framework stopped");
         }
 
         public void LoadAsset(string assetPath)
@@ -39,7 +69,7 @@ namespace Brigine.Core
                 return;
             }
 
-            var sceneService = _registry.GetService<ISceneService>();
+            var sceneService = _serviceRegistry.GetService<ISceneService>();
             if (sceneService == null)
             {
                 Logger.Error("ISceneService not found in ServiceRegistry");
@@ -65,7 +95,7 @@ namespace Brigine.Core
 
         private void Update(float delta)
         {
-            var sceneService = _registry.GetService<ISceneService>();
+            var sceneService = _serviceRegistry.GetService<ISceneService>();
             if (sceneService == null)
             {
                 Logger.Warn("ISceneService not found during update");

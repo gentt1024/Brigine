@@ -1,9 +1,12 @@
+using System;
 using System.Collections.Generic;
 
 namespace Brigine.Core
 {
     public class Entity
     {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; }
         public Transform Transform { get; set; } = Transform.Identity;
         private readonly List<IComponent> _components = new();
         public IReadOnlyList<IComponent> Components => _components;
@@ -14,6 +17,11 @@ namespace Brigine.Core
         {
             Parent = parent;
             Parent?.Children.Add(this);
+        }
+
+        public Entity(string name, Entity parent = null) : this(parent)
+        {
+            Name = name;
         }
 
         public void AddComponent(IComponent component)

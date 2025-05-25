@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+option csharp_namespace = "Brigine.Communication.Protos";
+
+package brigine.communication;
+
+// 场景服务 - 管理Brigine框架的场景和实体
+service SceneService {
+  // 添加实体到场景
+  rpc AddEntityToScene (AddEntityToSceneRequest) returns (AddEntityToSceneResponse);
+  // 从场景移除实体
+  rpc RemoveEntityFromScene (RemoveEntityFromSceneRequest) returns (RemoveEntityFromSceneResponse);
+  // 更新实体变换
+  rpc UpdateEntityTransform (UpdateEntityTransformRequest) returns (UpdateEntityTransformResponse);
+  // 获取场景实体列表
+  rpc GetSceneEntities (GetSceneEntitiesRequest) returns (GetSceneEntitiesResponse);
+  // 获取实体信息
+  rpc GetEntityInfo (GetEntityInfoRequest) returns (GetEntityInfoResponse);
+  // 场景事件流
+  rpc SceneEvents (SceneEventsRequest) returns (stream SceneEvent);
+}
+
+// 添加实体到场景请求
+message AddEntityToSceneRequest {
+  string framework_id = 1;
+  EntityInfo entity = 2;
+  string parent_entity_id = 3;
+}
+
+// 添加实体到场景响应
+message AddEntityToSceneResponse {
+  bool success = 1;
+  string error_message = 2;
+  string entity_id = 3;
+}
+
+// 从场景移除实体请求
+message RemoveEntityFromSceneRequest {
+  string framework_id = 1;
+  string entity_id = 2;
+}
+
+// 从场景移除实体响应
+message RemoveEntityFromSceneResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 更新实体变换请求
+message UpdateEntityTransformRequest {
+  string framework_id = 1;
+  string entity_id = 2;
+  Transform transform = 3;
+}
+
+// 更新实体变换响应
+message UpdateEntityTransformResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 获取场景实体列表请求
+message GetSceneEntitiesRequest {
+  string framework_id = 1;
+  string parent_entity_id = 2; // 空字符串表示根实体
+}
+
+// 获取场景实体列表响应
+message GetSceneEntitiesResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated EntityInfo entities = 3;
+}
+
+// 获取实体信息请求
+message GetEntityInfoRequest {
+  string framework_id = 1;
+  string entity_id = 2;
+}
+
+// 获取实体信息响应
+message GetEntityInfoResponse {
+  bool success = 1;
+  string error_message = 2;
+  EntityInfo entity = 3;
+}
+
+// 场景事件请求
+message SceneEventsRequest {
+  string framework_id = 1;
+  repeated SceneEventType event_types = 2;
+}
+
+// 场景事件
+message SceneEvent {
+  SceneEventType event_type = 1;
+  string framework_id = 2;
+  string entity_id = 3;
+  int64 timestamp = 4;
+  map<string, string> event_data = 5;
+}
+
+// 实体信息
+message EntityInfo {
+  string entity_id = 1;
+  string name = 2;
+  string type = 3;
+  Transform transform = 4;
+  repeated string children_ids = 5;
+  string parent_id = 6;
+  map<string, string> properties = 7;
+  repeated ComponentInfo components = 8;
+}
+
+// 变换信息
+message Transform {
+  Vector3 position = 1;
+  Quaternion rotation = 2;
+  Vector3 scale = 3;
+}
+
+// 三维向量
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+// 四元数
+message Quaternion {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  float w = 4;
+}
+
+// 组件信息
+message ComponentInfo {
+  string component_id = 1;
+  string component_type = 2;
+  map<string, string> properties = 3;
+  bool is_enabled = 4;
+}
+
+// 场景事件类型
+enum SceneEventType {
+  ENTITY_ADDED = 0;
+  ENTITY_REMOVED = 1;
+  ENTITY_TRANSFORM_UPDATED = 2;
+  ENTITY_PROPERTY_CHANGED = 3;
+  COMPONENT_ADDED = 4;
+  COMPONENT_REMOVED = 5;
+  COMPONENT_UPDATED = 6;
+} 

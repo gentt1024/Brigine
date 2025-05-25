@@ -426,3 +426,6 @@ $RECYCLE.BIN/
 
 # Unity
 *.meta
+
+# private
+private/

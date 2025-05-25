@@ -10,9 +10,9 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/Brigine.Player/bin/Debug/net6.0/Brigine.Player.dll",
+            "program": "${workspaceFolder}/src/Brigine.Communication.Client.Test/bin/Debug/net8.0/Brigine.Communication.Client.Test.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/src/Brigine.Player",
+            "cwd": "${workspaceFolder}/src/Brigine.Communication.Client.Test",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",
             "stopAtEntry": false

@@ -2,9 +2,9 @@ namespace Brigine.Core
 {
     public class AssetManager
     {
-        private readonly ServiceRegistry _registry;
+        private readonly IServiceRegistry _registry;
 
-        public AssetManager(ServiceRegistry registry)
+        public AssetManager(IServiceRegistry registry)
         {
             this._registry = registry;
         }

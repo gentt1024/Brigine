@@ -138,10 +138,11 @@ namespace Brigine.Core
             
             string primPath = prim.GetPath().GetAsString();
             string primType = prim.GetTypeName().GetText();
-            Console.WriteLine($"处理Prim: {primPath}, 类型: {primType}");
+            string primName = prim.GetName().GetText();
+            Console.WriteLine($"处理Prim: {primPath}, 类型: {primType}, 名称: {primName}");
             
-            // 创建新实体
-            Entity entity = new Entity(parentEntity);
+            // 创建新实体，使用 Prim 的名称
+            Entity entity = new Entity(primName, parentEntity);
             
             // 处理变换矩阵
             ProcessTransform(prim, entity);

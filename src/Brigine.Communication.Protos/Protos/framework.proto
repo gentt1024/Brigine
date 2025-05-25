@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+option csharp_namespace = "Brigine.Communication.Protos";
+
+package brigine.communication;
+
+// 框架服务 - 管理Brigine框架的生命周期
+service FrameworkService {
+  // 启动框架
+  rpc StartFramework (StartFrameworkRequest) returns (StartFrameworkResponse);
+  // 停止框架
+  rpc StopFramework (StopFrameworkRequest) returns (StopFrameworkResponse);
+  // 获取框架状态
+  rpc GetFrameworkStatus (GetFrameworkStatusRequest) returns (GetFrameworkStatusResponse);
+  // 注册功能提供者
+  rpc RegisterFunctionProvider (RegisterFunctionProviderRequest) returns (RegisterFunctionProviderResponse);
+  // 获取服务
+  rpc GetService (GetServiceRequest) returns (GetServiceResponse);
+  // 框架事件流
+  rpc FrameworkEvents (FrameworkEventsRequest) returns (stream FrameworkEvent);
+}
+
+// 启动框架请求
+message StartFrameworkRequest {
+  repeated string function_providers = 1; // 要注册的功能提供者类型
+  map<string, string> configuration = 2;  // 配置参数
+}
+
+// 启动框架响应
+message StartFrameworkResponse {
+  bool success = 1;
+  string error_message = 2;
+  string framework_id = 3;
+}
+
+// 停止框架请求
+message StopFrameworkRequest {
+  string framework_id = 1;
+}
+
+// 停止框架响应
+message StopFrameworkResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 获取框架状态请求
+message GetFrameworkStatusRequest {
+  string framework_id = 1;
+}
+
+// 获取框架状态响应
+message GetFrameworkStatusResponse {
+  bool success = 1;
+  string error_message = 2;
+  FrameworkStatus status = 3;
+}
+
+// 注册功能提供者请求
+message RegisterFunctionProviderRequest {
+  string framework_id = 1;
+  string provider_type = 2;
+  map<string, string> provider_config = 3;
+}
+
+// 注册功能提供者响应
+message RegisterFunctionProviderResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 获取服务请求
+message GetServiceRequest {
+  string framework_id = 1;
+  string service_type = 2;
+}
+
+// 获取服务响应
+message GetServiceResponse {
+  bool success = 1;
+  string error_message = 2;
+  string service_id = 3;
+  bool is_available = 4;
+}
+
+// 框架事件请求
+message FrameworkEventsRequest {
+  string framework_id = 1;
+  repeated FrameworkEventType event_types = 2;
+}
+
+// 框架事件
+message FrameworkEvent {
+  FrameworkEventType event_type = 1;
+  string framework_id = 2;
+  int64 timestamp = 3;
+  map<string, string> event_data = 4;
+}
+
+// 框架状态
+message FrameworkStatus {
+  bool is_running = 1;
+  repeated string registered_providers = 2;
+  repeated string available_services = 3;
+  int64 start_time = 4;
+  map<string, string> configuration = 5;
+}
+
+// 框架事件类型
+enum FrameworkEventType {
+  FRAMEWORK_STARTED = 0;
+  FRAMEWORK_STOPPED = 1;
+  PROVIDER_REGISTERED = 2;
+  PROVIDER_UNREGISTERED = 3;
+  SERVICE_REQUESTED = 4;
+  ERROR_OCCURRED = 5;
+} 

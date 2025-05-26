@@ -21,6 +21,11 @@ builder.Services.AddCors();
 // 添加日志
 builder.Services.AddLogging();
 
+// 注册服务实现为单例，确保依赖关系正确
+builder.Services.AddSingleton<FrameworkServiceImpl>();
+builder.Services.AddSingleton<AssetServiceImpl>();
+builder.Services.AddSingleton<SceneServiceImpl>();
+
 var app = builder.Build();
 
 // 配置CORS（如果需要支持gRPC-Web）
@@ -42,5 +47,9 @@ app.MapGet("/", () => "Brigine Communication Server is running. Use a gRPC clien
 
 Console.WriteLine("Brigine Communication Server starting...");
 Console.WriteLine("gRPC endpoint: http://localhost:50051");
+Console.WriteLine("Services registered:");
+Console.WriteLine("  - FrameworkService: Framework lifecycle management");
+Console.WriteLine("  - AssetService: Asset loading and management via Core.AssetManager");
+Console.WriteLine("  - SceneService: Scene entity management via Core.ISceneService");
 
 app.Run(); 

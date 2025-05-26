@@ -6,15 +6,18 @@ using ProtoFrameworkStatus = Brigine.Communication.Protos.FrameworkStatus;
 
 namespace Brigine.Communication.Server.Services;
 
-public class FrameworkServiceImpl : FrameworkService.FrameworkServiceBase
+public class FrameworkServiceImpl : FrameworkService.FrameworkServiceBase, IDisposable
 {
     private readonly ILogger<FrameworkServiceImpl> _logger;
-    private readonly Dictionary<string, Framework> _frameworks = new();
-    private readonly object _lock = new();
+    private readonly IFrameworkManager _frameworkManager;
+    private bool _disposed = false;
 
     public FrameworkServiceImpl(ILogger<FrameworkServiceImpl> logger)
     {
         _logger = logger;
+        // 创建FrameworkManager实例，使用Core的ILogger
+        var coreLogger = new CoreLoggerAdapter(logger);
+        _frameworkManager = new FrameworkManager(coreLogger);
     }
 
     public override Task<StartFrameworkResponse> StartFramework(
@@ -26,22 +29,21 @@ public class FrameworkServiceImpl : FrameworkService.FrameworkServiceBase
             _logger.LogInformation("Starting framework with providers: {Providers}", 
                 string.Join(", ", request.FunctionProviders));
 
-            var frameworkId = Guid.NewGuid().ToString();
-            var serviceRegistry = new ServiceRegistry();
-            
-            // 注册功能提供者
-            foreach (var providerType in request.FunctionProviders)
-            {
-                _logger.LogDebug("Registering function provider: {ProviderType}", providerType);
-                // 这里可以根据providerType动态注册不同的服务
-            }
+            // 使用FrameworkManager创建框架
+            var frameworkId = _frameworkManager.CreateFramework(
+                request.FunctionProviders, 
+                request.Configuration.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
+            );
 
-            var framework = new Framework(serviceRegistry);
-            framework.Start();
-
-            lock (_lock)
+            // 启动框架
+            var started = _frameworkManager.StartFramework(frameworkId);
+            if (!started)
             {
-                _frameworks[frameworkId] = framework;
+                return Task.FromResult(new StartFrameworkResponse
+                {
+                    Success = false,
+                    ErrorMessage = "Failed to start framework"
+                });
             }
 
             _logger.LogInformation("Framework started successfully: {FrameworkId}", frameworkId);
@@ -69,26 +71,21 @@ public class FrameworkServiceImpl : FrameworkService.FrameworkServiceBase
     {
         try
         {
-            lock (_lock)
+            var stopped = _frameworkManager.StopFramework(request.FrameworkId);
+            if (stopped)
             {
-                if (_frameworks.TryGetValue(request.FrameworkId, out var framework))
+                _logger.LogInformation("Framework stopped: {FrameworkId}", request.FrameworkId);
+                
+                return Task.FromResult(new StopFrameworkResponse
                 {
-                    framework.Stop();
-                    _frameworks.Remove(request.FrameworkId);
-                    
-                    _logger.LogInformation("Framework stopped: {FrameworkId}", request.FrameworkId);
-                    
-                    return Task.FromResult(new StopFrameworkResponse
-                    {
-                        Success = true
-                    });
-                }
+                    Success = true
+                });
             }
 
             return Task.FromResult(new StopFrameworkResponse
             {
                 Success = false,
-                ErrorMessage = "Framework not found"
+                ErrorMessage = "Framework not found or failed to stop"
             });
         }
         catch (Exception ex)
@@ -108,26 +105,32 @@ public class FrameworkServiceImpl : FrameworkService.FrameworkServiceBase
     {
         try
         {
-            lock (_lock)
+            var status = _frameworkManager.GetFrameworkStatus(request.FrameworkId);
+            if (status != null)
             {
-                if (_frameworks.TryGetValue(request.FrameworkId, out var framework))
+                var protoStatus = new ProtoFrameworkStatus
                 {
-                    var status = new ProtoFrameworkStatus
-                    {
-                        IsRunning = framework.IsRunning,
-                        StartTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() // 简化实现
-                    };
+                    IsRunning = status.IsRunning,
+                    StartTime = ((DateTimeOffset)status.StartTime).ToUnixTimeSeconds()
+                };
 
-                    // 获取可用服务 - 简化实现
-                    status.AvailableServices.Add("AssetService");
-                    status.AvailableServices.Add("SceneService");
-
-                    return Task.FromResult(new GetFrameworkStatusResponse
-                    {
-                        Success = true,
-                        Status = status
-                    });
+                // 添加已注册的服务
+                foreach (var service in status.RegisteredServices)
+                {
+                    protoStatus.AvailableServices.Add(service);
                 }
+
+                // 添加配置信息
+                foreach (var config in status.Configuration)
+                {
+                    protoStatus.Configuration[config.Key] = config.Value;
+                }
+
+                return Task.FromResult(new GetFrameworkStatusResponse
+                {
+                    Success = true,
+                    Status = protoStatus
+                });
             }
 
             return Task.FromResult(new GetFrameworkStatusResponse
@@ -153,27 +156,27 @@ public class FrameworkServiceImpl : FrameworkService.FrameworkServiceBase
     {
         try
         {
-            lock (_lock)
+            var registered = _frameworkManager.RegisterEngineProvider(
+                request.FrameworkId, 
+                request.ProviderType, 
+                request.ProviderConfig.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
+            );
+
+            if (registered)
             {
-                if (_frameworks.TryGetValue(request.FrameworkId, out var framework))
+                _logger.LogInformation("Function provider registered: {ProviderType} for framework {FrameworkId}", 
+                    request.ProviderType, request.FrameworkId);
+
+                return Task.FromResult(new RegisterFunctionProviderResponse
                 {
-                    _logger.LogInformation("Registering function provider {ProviderType} for framework {FrameworkId}", 
-                        request.ProviderType, request.FrameworkId);
-
-                    // 这里可以动态注册功能提供者
-                    // 具体实现取决于你的功能提供者架构
-
-                    return Task.FromResult(new RegisterFunctionProviderResponse
-                    {
-                        Success = true
-                    });
-                }
+                    Success = true
+                });
             }
 
             return Task.FromResult(new RegisterFunctionProviderResponse
             {
                 Success = false,
-                ErrorMessage = "Framework not found"
+                ErrorMessage = "Framework not found or failed to register provider"
             });
         }
         catch (Exception ex)
@@ -193,16 +196,21 @@ public class FrameworkServiceImpl : FrameworkService.FrameworkServiceBase
     {
         try
         {
-            lock (_lock)
+            var framework = _frameworkManager.GetFramework(request.FrameworkId);
+            if (framework != null)
             {
-                if (_frameworks.TryGetValue(request.FrameworkId, out var framework))
+                // 根据服务类型名称查找服务
+                var serviceType = GetServiceTypeByName(request.ServiceType);
+                if (serviceType != null)
                 {
-                    // 简化实现：假设服务总是可用的
+                    var service = framework.Services.GetService(serviceType);
+                    var isAvailable = service != null;
+
                     return Task.FromResult(new GetServiceResponse
                     {
                         Success = true,
-                        ServiceId = Guid.NewGuid().ToString(),
-                        IsAvailable = true
+                        ServiceId = isAvailable ? Guid.NewGuid().ToString() : string.Empty,
+                        IsAvailable = isAvailable
                     });
                 }
             }
@@ -210,7 +218,7 @@ public class FrameworkServiceImpl : FrameworkService.FrameworkServiceBase
             return Task.FromResult(new GetServiceResponse
             {
                 Success = false,
-                ErrorMessage = "Framework not found"
+                ErrorMessage = "Framework or service not found"
             });
         }
         catch (Exception ex)
@@ -229,25 +237,49 @@ public class FrameworkServiceImpl : FrameworkService.FrameworkServiceBase
         IServerStreamWriter<FrameworkEvent> responseStream, 
         ServerCallContext context)
     {
-        _logger.LogInformation("Starting framework events stream for: {FrameworkId}", request.FrameworkId);
-
         try
         {
-            // 这里可以实现事件流
-            // 简化实现：发送一个测试事件
-            var testEvent = new FrameworkEvent
+            _logger.LogInformation("Starting framework events stream for: {FrameworkId}", request.FrameworkId);
+
+            // 检查框架是否存在
+            var framework = _frameworkManager.GetFramework(request.FrameworkId);
+            if (framework == null)
+            {
+                await responseStream.WriteAsync(new FrameworkEvent
+                {
+                    EventType = FrameworkEventType.ErrorOccurred,
+                    FrameworkId = request.FrameworkId,
+                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                });
+                return;
+            }
+
+            // 发送初始事件
+            await responseStream.WriteAsync(new FrameworkEvent
             {
                 EventType = FrameworkEventType.FrameworkStarted,
                 FrameworkId = request.FrameworkId,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
-            };
-
-            await responseStream.WriteAsync(testEvent);
+            });
 
             // 保持连接直到客户端断开
             while (!context.CancellationToken.IsCancellationRequested)
             {
                 await Task.Delay(1000, context.CancellationToken);
+                
+                // 检查框架状态变化
+                var status = _frameworkManager.GetFrameworkStatus(request.FrameworkId);
+                if (status == null)
+                {
+                    // 框架被移除
+                    await responseStream.WriteAsync(new FrameworkEvent
+                    {
+                        EventType = FrameworkEventType.FrameworkStopped,
+                        FrameworkId = request.FrameworkId,
+                        Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                    });
+                    break;
+                }
             }
         }
         catch (OperationCanceledException)
@@ -259,4 +291,62 @@ public class FrameworkServiceImpl : FrameworkService.FrameworkServiceBase
             _logger.LogError(ex, "Error in framework events stream: {FrameworkId}", request.FrameworkId);
         }
     }
+
+    // 获取Framework实例的公共方法，供其他服务使用
+    public Framework? GetFramework(string frameworkId)
+    {
+        return _frameworkManager.GetFramework(frameworkId);
+    }
+
+    // 获取所有活跃的框架ID
+    public IEnumerable<string> GetActiveFrameworks()
+    {
+        return _frameworkManager.GetActiveFrameworks();
+    }
+
+    private Type? GetServiceTypeByName(string serviceTypeName)
+    {
+        return serviceTypeName.ToLower() switch
+        {
+            "isceneservice" => typeof(ISceneService),
+            "iassetserializer" => typeof(IAssetSerializer),
+            "iupdateservice" => typeof(IUpdateService),
+            "ilogger" => typeof(Brigine.Core.ILogger),
+            _ => null
+        };
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                _frameworkManager?.Dispose();
+            }
+            _disposed = true;
+        }
+    }
+}
+
+// 适配器类，将Microsoft.Extensions.Logging.ILogger适配为Brigine.Core.ILogger
+internal class CoreLoggerAdapter : Brigine.Core.ILogger
+{
+    private readonly ILogger<FrameworkServiceImpl> _logger;
+
+    public CoreLoggerAdapter(ILogger<FrameworkServiceImpl> logger)
+    {
+        _logger = logger;
+    }
+
+    public void Info(string message) => _logger.LogInformation(message);
+    public void Warn(string message) => _logger.LogWarning(message);
+    public void Error(string message) => _logger.LogError(message);
+    public void Debug(string message) => _logger.LogDebug(message);
 } 

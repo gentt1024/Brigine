@@ -5,6 +5,8 @@ Console.WriteLine("=== Brigine Communication Client Test ===");
 try
 {
     // 创建客户端 - 所有平台统一使用BrigineClient
+    // 在.NET环境中，不需要提供HttpHandler
+    // 在Unity环境中，建议提供支持HTTP/2的HttpHandler
     using var client = new BrigineClient("http://localhost:50051");
     
     Console.WriteLine("连接到Brigine服务器...");
@@ -94,13 +96,7 @@ try
 catch (Exception ex)
 {
     Console.WriteLine($"测试失败: {ex.Message}");
-    Console.WriteLine("请确保Brigine服务器正在运行 (dotnet run --project src/Brigine.Communication.Server)");
 }
-
-Console.WriteLine("\n=== 架构说明 ===");
-Console.WriteLine("✅ 所有平台统一使用 BrigineClient");
-Console.WriteLine("✅ Unity特定功能通过 BrigineUnityExtensions 扩展方法提供");
-Console.WriteLine("✅ 简化的架构，减少不必要的复杂性");
 
 Console.WriteLine("\n按任意键退出...");
 Console.ReadKey(); 

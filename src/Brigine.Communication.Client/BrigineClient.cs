@@ -32,12 +32,6 @@ namespace Brigine.Communication.Client
                 channelOptions.HttpHandler = httpHandler;
                 channelOptions.DisposeHttpClient = true;
             }
-            else
-            {
-                // 在Unity中，如果没有提供HttpHandler，会使用默认的UnityWebRequest
-                // 这可能不支持HTTP/2，建议提供YetAnotherHttpHandler
-                // 在其他.NET平台上，会使用默认的HttpClientHandler
-            }
 
             _channel = GrpcChannel.ForAddress(serverAddress, channelOptions);
             _frameworkClient = new FrameworkService.FrameworkServiceClient(_channel);

@@ -9,7 +9,7 @@ public class AssetServiceImpl : AssetService.AssetServiceBase
 {
     private readonly ILogger<AssetServiceImpl> _logger;
     private readonly FrameworkServiceImpl _frameworkService;
-    private readonly Dictionary<string, Dictionary<string, object>> _loadedAssets = new();
+    private readonly Dictionary<string, Dictionary<string, AssetInfo>> _assetCache = new();
     private readonly object _lock = new();
 
     public AssetServiceImpl(ILogger<AssetServiceImpl> logger, FrameworkServiceImpl frameworkService)
@@ -35,37 +35,45 @@ public class AssetServiceImpl : AssetService.AssetServiceBase
                 });
             }
 
-            // 使用Framework的LoadAsset方法
+            // 检查文件是否存在
+            if (!File.Exists(request.AssetPath))
+            {
+                return Task.FromResult(new LoadAssetResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Asset file not found: {request.AssetPath}"
+                });
+            }
+
+            // 使用Framework的AssetManager真正加载资产
             framework.LoadAsset(request.AssetPath);
 
             var assetId = Guid.NewGuid().ToString();
+            var fileInfo = new FileInfo(request.AssetPath);
             
-            // 记录已加载的资产
-            lock (_lock)
-            {
-                if (!_loadedAssets.ContainsKey(request.FrameworkId))
-                {
-                    _loadedAssets[request.FrameworkId] = new Dictionary<string, object>();
-                }
-                _loadedAssets[request.FrameworkId][assetId] = new
-                {
-                    AssetId = assetId,
-                    Path = request.AssetPath,
-                    LoadTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                    LoadOptions = request.LoadOptions
-                };
-            }
-
             var assetInfo = new AssetInfo
             {
                 AssetId = assetId,
                 Path = request.AssetPath,
-                Name = System.IO.Path.GetFileNameWithoutExtension(request.AssetPath),
+                Name = Path.GetFileNameWithoutExtension(request.AssetPath),
                 Type = GetAssetTypeFromPath(request.AssetPath),
-                Size = 0, // 实际实现中应该获取文件大小
-                LastModified = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                Size = fileInfo.Length,
+                LastModified = ((DateTimeOffset)fileInfo.LastWriteTime).ToUnixTimeSeconds(),
                 IsLoaded = true
             };
+
+            // 缓存资产信息
+            lock (_lock)
+            {
+                if (!_assetCache.ContainsKey(request.FrameworkId))
+                {
+                    _assetCache[request.FrameworkId] = new Dictionary<string, AssetInfo>();
+                }
+                _assetCache[request.FrameworkId][assetId] = assetInfo;
+            }
+
+            _logger.LogInformation("Asset loaded successfully: {AssetPath} with ID: {AssetId}", 
+                request.AssetPath, assetId);
 
             return Task.FromResult(new LoadAssetResponse
             {
@@ -102,14 +110,30 @@ public class AssetServiceImpl : AssetService.AssetServiceBase
                 });
             }
 
-            // 从已加载资产中移除
+            // 从缓存中获取资产信息，然后从Framework卸载
+            AssetInfo assetInfo = null;
             lock (_lock)
             {
-                if (_loadedAssets.TryGetValue(request.FrameworkId, out var frameworkAssets))
+                if (_assetCache.TryGetValue(request.FrameworkId, out var frameworkAssets))
                 {
-                    frameworkAssets.Remove(request.AssetId);
+                    if (frameworkAssets.TryGetValue(request.AssetId, out assetInfo))
+                    {
+                        frameworkAssets.Remove(request.AssetId);
+                    }
                 }
             }
+
+            if (assetInfo == null)
+            {
+                return Task.FromResult(new UnloadAssetResponse
+                {
+                    Success = false,
+                    ErrorMessage = "Asset not found in cache"
+                });
+            }
+
+            // 注意：Core.AssetManager目前没有卸载方法，这里记录日志
+            _logger.LogInformation("Asset unloaded from cache: {AssetPath}", assetInfo.Path);
 
             return Task.FromResult(new UnloadAssetResponse
             {
@@ -146,21 +170,9 @@ public class AssetServiceImpl : AssetService.AssetServiceBase
 
             lock (_lock)
             {
-                if (_loadedAssets.TryGetValue(request.FrameworkId, out var frameworkAssets) &&
-                    frameworkAssets.TryGetValue(request.AssetId, out var assetData))
+                if (_assetCache.TryGetValue(request.FrameworkId, out var frameworkAssets) &&
+                    frameworkAssets.TryGetValue(request.AssetId, out var assetInfo))
                 {
-                    var data = (dynamic)assetData;
-                    var assetInfo = new AssetInfo
-                    {
-                        AssetId = data.AssetId,
-                        Path = data.Path,
-                        Name = System.IO.Path.GetFileNameWithoutExtension(data.Path),
-                        Type = GetAssetTypeFromPath(data.Path),
-                        Size = 0,
-                        LastModified = data.LoadTime,
-                        IsLoaded = true
-                    };
-
                     return Task.FromResult(new GetAssetInfoResponse
                     {
                         Success = true,
@@ -209,25 +221,15 @@ public class AssetServiceImpl : AssetService.AssetServiceBase
 
             lock (_lock)
             {
-                if (_loadedAssets.TryGetValue(request.FrameworkId, out var frameworkAssets))
+                if (_assetCache.TryGetValue(request.FrameworkId, out var frameworkAssets))
                 {
                     foreach (var kvp in frameworkAssets)
                     {
-                        var data = (dynamic)kvp.Value;
-                        var assetInfo = new AssetInfo
-                        {
-                            AssetId = data.AssetId,
-                            Path = data.Path,
-                            Name = System.IO.Path.GetFileNameWithoutExtension(data.Path),
-                            Type = GetAssetTypeFromPath(data.Path),
-                            Size = 0,
-                            LastModified = data.LoadTime,
-                            IsLoaded = true
-                        };
+                        var assetInfo = kvp.Value;
 
                         // 应用过滤器
                         if (!string.IsNullOrEmpty(request.PathFilter) && 
-                            !data.Path.Contains(request.PathFilter, StringComparison.OrdinalIgnoreCase))
+                            !assetInfo.Path.Contains(request.PathFilter, StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }
@@ -242,6 +244,9 @@ public class AssetServiceImpl : AssetService.AssetServiceBase
                     }
                 }
             }
+
+            _logger.LogInformation("Listed {Count} assets for framework: {FrameworkId}", 
+                response.Assets.Count, request.FrameworkId);
 
             return Task.FromResult(response);
         }
@@ -258,7 +263,7 @@ public class AssetServiceImpl : AssetService.AssetServiceBase
 
     private AssetType GetAssetTypeFromPath(string path)
     {
-        var extension = System.IO.Path.GetExtension(path).ToLower();
+        var extension = Path.GetExtension(path).ToLower();
         return extension switch
         {
             ".usd" or ".usda" or ".usdc" => AssetType.UsdScene,

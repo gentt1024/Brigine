@@ -4,6 +4,10 @@ using UnityEngine;
 using Brigine.Core;
 using Brigine.Unity;
 
+/// <summary>
+/// Brigine框架启动组件 - 简化的本地Framework管理
+/// 每个Unity客户端创建一个Framework实例来处理本地引擎集成
+/// </summary>
 public class FrameworkStartup : MonoBehaviour
 {
     [Header("Framework Settings")]
@@ -21,6 +25,9 @@ public class FrameworkStartup : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 初始化本地Framework实例
+    /// </summary>
     public void InitializeFramework()
     {
         try
@@ -31,8 +38,8 @@ public class FrameworkStartup : MonoBehaviour
             // 注册Unity特定的服务
             UnityServiceProvider.RegisterUnityServices(serviceRegistry);
             
-            // 创建并启动框架
-            _framework = new Framework(serviceRegistry);
+            // 创建并启动框架 - 指定引擎类型
+            _framework = new Framework(serviceRegistry, "Unity");
             _framework.Start();
             
             Debug.Log("[Brigine] Framework initialized and started successfully");
@@ -76,6 +83,9 @@ public class FrameworkStartup : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 停止Framework
+    /// </summary>
     public void StopFramework()
     {
         if (_framework != null && _framework.IsRunning)
@@ -85,9 +95,29 @@ public class FrameworkStartup : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 获取当前Framework实例
+    /// </summary>
+    public Framework GetFramework() => _framework;
+
+    /// <summary>
+    /// 获取Framework状态信息
+    /// </summary>
+    public string GetFrameworkStatus()
+    {
+        if (_framework == null)
+            return "Framework not initialized";
+            
+        return $"Framework Status:\n" +
+               $"- Engine: {_framework.EngineType}\n" +
+               $"- Running: {_framework.IsRunning}\n" +
+               $"- Entities: {_framework.GetSceneEntities().Count()}";
+    }
+
     void OnDestroy()
     {
-        StopFramework();
+        // 使用Dispose方法进行完整清理
+        _framework?.Dispose();
     }
 
     void OnApplicationPause(bool pauseStatus)
@@ -100,5 +130,30 @@ public class FrameworkStartup : MonoBehaviour
         {
             _framework.Start();
         }
+    }
+
+    // Unity Inspector按钮
+    [ContextMenu("Initialize Framework")]
+    public void InitializeFrameworkMenu()
+    {
+        InitializeFramework();
+    }
+
+    [ContextMenu("Stop Framework")]
+    public void StopFrameworkMenu()
+    {
+        StopFramework();
+    }
+
+    [ContextMenu("Get Framework Status")]
+    public void GetFrameworkStatusMenu()
+    {
+        Debug.Log(GetFrameworkStatus());
+    }
+
+    [ContextMenu("Load Test Asset")]
+    public void LoadTestAssetMenu()
+    {
+        LoadTestAsset();
     }
 }

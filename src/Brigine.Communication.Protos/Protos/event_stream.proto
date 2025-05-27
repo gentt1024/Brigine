@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+option csharp_namespace = "Brigine.Communication.Protos";
+
+package brigine.communication;
+
+import "google/protobuf/any.proto";
+import "Protos/common.proto";
+
+// 事件流服务 - 实时事件广播和订阅
+service EventStreamService {
+  // 订阅事件流
+  rpc SubscribeEvents (SubscribeEventsRequest) returns (stream SceneChangeEvent);
+  // 发布事件
+  rpc PublishEvent (PublishEventRequest) returns (PublishEventResponse);
+  // 获取事件历史
+  rpc GetEventHistory (GetEventHistoryRequest) returns (GetEventHistoryResponse);
+}
+
+// 订阅事件请求
+message SubscribeEventsRequest {
+  string session_id = 1;
+  string user_id = 2;
+  repeated SceneChangeType event_types = 3; // 空表示订阅所有事件
+  EventFilter filter = 4; // 可选的事件过滤器
+}
+
+// 发布事件请求
+message PublishEventRequest {
+  string session_id = 1;
+  string user_id = 2;
+  SceneChangeEvent event = 3;
+}
+
+// 发布事件响应
+message PublishEventResponse {
+  bool success = 1;
+  string error_message = 2;
+  string event_id = 3;
+  int64 timestamp = 4;
+}
+
+// 获取事件历史请求
+message GetEventHistoryRequest {
+  string session_id = 1;
+  int64 start_time = 2; // Unix时间戳
+  int64 end_time = 3;   // Unix时间戳
+  repeated SceneChangeType event_types = 4;
+  int32 limit = 5;
+  int32 offset = 6;
+}
+
+// 获取事件历史响应
+message GetEventHistoryResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated SceneChangeEvent events = 3;
+  int32 total_count = 4;
+}
+
+// 场景变更事件
+message SceneChangeEvent {
+  string event_id = 1;
+  SceneChangeType change_type = 2;
+  string session_id = 3;
+  string user_id = 4;
+  string entity_id = 5;
+  int64 timestamp = 6;
+  google.protobuf.Any change_data = 7;
+  EventMetadata metadata = 8;
+}
+
+// 事件过滤器
+message EventFilter {
+  repeated string entity_ids = 1; // 只接收特定实体的事件
+  repeated string user_ids = 2;   // 只接收特定用户的事件
+  repeated string entity_types = 3; // 只接收特定类型实体的事件
+  BoundingBox spatial_filter = 4; // 空间范围过滤
+}
+
+// 事件元数据
+message EventMetadata {
+  string client_type = 1; // "Unity", "Godot", "Blender"
+  string client_version = 2;
+  map<string, string> custom_data = 3;
+  bool is_batch = 4; // 是否为批量操作的一部分
+  string batch_id = 5; // 批量操作ID
+}
+
+// 实体创建事件数据
+message EntityCreatedEventData {
+  SceneEntity entity = 1;
+  string parent_id = 2;
+  int32 sibling_index = 3; // 在父节点中的位置
+}
+
+// 实体更新事件数据
+message EntityUpdatedEventData {
+  SceneEntity old_entity = 1;
+  SceneEntity new_entity = 2;
+  repeated string changed_properties = 3; // 变更的属性列表
+}
+
+// 实体删除事件数据
+message EntityDeletedEventData {
+  SceneEntity deleted_entity = 1;
+  repeated string affected_children = 2; // 受影响的子实体ID
+}
+
+// 变换变更事件数据
+message TransformChangedEventData {
+  string entity_id = 1;
+  Transform old_transform = 2;
+  Transform new_transform = 3;
+  TransformChangeType change_type = 4;
+}
+
+// 属性变更事件数据
+message PropertyChangedEventData {
+  string entity_id = 1;
+  string property_name = 2;
+  PropertyValue old_value = 3;
+  PropertyValue new_value = 4;
+}
+
+// 层次结构变更事件数据
+message HierarchyChangedEventData {
+  string entity_id = 1;
+  string old_parent_id = 2;
+  string new_parent_id = 3;
+  int32 old_sibling_index = 4;
+  int32 new_sibling_index = 5;
+}
+
+// 批量操作事件数据
+message BatchOperationEventData {
+  string batch_id = 1;
+  repeated SceneChangeEvent operations = 2;
+  BatchOperationType operation_type = 3;
+}
+
+// 场景变更类型
+enum SceneChangeType {
+  ENTITY_CREATED = 0;
+  ENTITY_UPDATED = 1;
+  ENTITY_DELETED = 2;
+  TRANSFORM_CHANGED = 3;
+  PROPERTY_CHANGED = 4;
+  HIERARCHY_CHANGED = 5;
+  BATCH_OPERATION = 6;
+  SCENE_LOADED = 7;
+  SCENE_SAVED = 8;
+}
+
+// 变换变更类型
+enum TransformChangeType {
+  POSITION_CHANGED = 0;
+  ROTATION_CHANGED = 1;
+  SCALE_CHANGED = 2;
+  ALL_CHANGED = 3;
+}
+
+// 批量操作类型
+enum BatchOperationType {
+  BATCH_CREATE = 0;
+  BATCH_UPDATE = 1;
+  BATCH_DELETE = 2;
+  BATCH_MIXED = 3;
+} 

@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+option csharp_namespace = "Brigine.Communication.Protos";
+
+package brigine.communication;
+
+// 三维向量
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+// 四元数
+message Quaternion {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  float w = 4;
+}
+
+// 颜色
+message Color {
+  float r = 1;
+  float g = 2;
+  float b = 3;
+  float a = 4;
+}
+
+// 变换信息
+message Transform {
+  Vector3 position = 1;
+  Quaternion rotation = 2;
+  Vector3 scale = 3;
+}
+
+// 包围盒
+message BoundingBox {
+  Vector3 min = 1;
+  Vector3 max = 2;
+}
+
+// 属性值 (支持多种类型)
+message PropertyValue {
+  oneof value {
+    string string_value = 1;
+    float float_value = 2;
+    int32 int_value = 3;
+    bool bool_value = 4;
+    Vector3 vector3_value = 5;
+    Color color_value = 6;
+    bytes binary_value = 7;
+  }
+}
+
+// 实体元数据
+message EntityMetadata {
+  string created_by = 1;
+  int64 created_time = 2;
+  string modified_by = 3;
+  int64 modified_time = 4;
+  string locked_by = 5;
+  repeated string tags = 6;
+  int64 version = 7;
+}
+
+// 场景元数据
+message SceneMetadata {
+  string created_by = 1;
+  int64 created_time = 2;
+  string modified_by = 3;
+  int64 modified_time = 4;
+  map<string, string> properties = 5;
+}
+
+// 抽象实体定义 (引擎无关)
+message SceneEntity {
+  string entity_id = 1;
+  string name = 2;
+  string type = 3; // "Mesh", "Light", "Camera", "Group", "Empty"
+  Transform transform = 4;
+  string parent_id = 5;
+  repeated string child_ids = 6;
+  map<string, PropertyValue> properties = 7;
+  EntityMetadata metadata = 8;
+} 

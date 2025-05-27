@@ -1,316 +1,283 @@
-# Brigine - 跨引擎 3D 场景协作工具
+# Brigine - 跨引擎3D场景协作框架
 
-> **当前版本**: v0.1.5-dev | **状态**: 🟢 活跃开发中  
-> **核心架构**: ✅ 完成 | **下一个里程碑**: v0.2.0 实时场景同步
+**Brigine** 是一个现代化的跨引擎3D场景协作框架，支持Unity、Godot、Unreal Engine等多个游戏引擎之间的实时场景同步和协作编辑。
 
-Brigine 是一个基于 USD 格式的跨引擎 3D 场景编辑和运行时工具，通过 gRPC 通信实现不同游戏引擎间的实时场景同步和资产共享。
+## 🎯 核心理念
 
-## 📊 项目状态概览
+### 简化的客户端-服务器架构
+```
+Unity Client (本地Framework) ←→ gRPC Server (纯数据服务) ←→ Godot Client (本地Framework)
+```
 
-- **✅ gRPC通信架构**: 90% 完成 - 服务器可运行，客户端功能完整
-- **✅ 核心框架系统**: 95% 完成 - FrameworkManager、ServiceRegistry、AssetManager
-- **🔄 Unity编辑器集成**: 20% 完成 - 基础结构完成，编辑器插件开发中
-- **🔄 Godot运行时集成**: 15% 完成 - 项目结构就绪，功能实现中
-- **❌ USD完整支持**: 10% 完成 - 基础框架就绪，核心功能待开发
+- **本地Framework**：每个客户端运行自己的Framework实例，处理引擎特定的场景操作
+- **gRPC服务器**：专注于数据同步和协作管理，不涉及引擎逻辑
+- **事件驱动**：通过实时事件流确保所有客户端状态同步
 
-## 🎯 核心功能
+### 设计原则
+- **引擎平等**：所有引擎都是一等公民，无主从关系
+- **数据驱动**：纯数据同步，引擎只负责渲染和交互
+- **简单直接**：避免过度工程化，每个组件职责清晰
+- **实时协作**：支持多用户同时编辑同一场景
 
-### 1. 跨引擎场景同步 ✅
-- ✅ **gRPC服务器**: 已完成，可稳定运行在 http://localhost:50051
-- ✅ **实时通信**: 框架、资产、场景三大服务完整实现
-- 🔄 **Unity编辑器**: 基础连接完成，实时同步开发中
-- 🔄 **Godot运行时**: 项目结构就绪，集成开发中
+## 🏗️ 架构概览
 
-### 2. 统一资产管理 ✅
-- ✅ **AssetManager**: 完整的资产生命周期管理
-- ✅ **加载/卸载**: 支持异步资产操作
-- ✅ **依赖管理**: 资产引用计数和自动清理
-- 🔄 **USD格式**: 基础支持，完整转换器开发中
+### Core层 - 跨引擎抽象
+```csharp
+// 每个客户端创建一个Framework实例
+var serviceRegistry = new ServiceRegistry();
+UnityServiceProvider.RegisterUnityServices(serviceRegistry);
 
-### 3. 企业级架构 ✅
-- ✅ **FrameworkManager**: 多引擎实例并发管理
-- ✅ **动态服务加载**: 反射加载Unity/Godot/Unreal服务
-- ✅ **依赖注入**: ServiceRegistry容器化管理
-- ✅ **错误处理**: 完善的异常处理和日志系统
+var framework = new Framework(serviceRegistry, "Unity");
+framework.Start();
 
-## 🏗️ 技术架构
+// 加载资产
+framework.LoadAsset("models/scene.usda");
+```
+
+### gRPC层 - 协作通信
+```csharp
+// 连接到协作服务器
+var client = new BrigineClient("http://localhost:50051");
+
+// 创建协作会话
+var session = await client.CreateSessionAsync("MyProject", "User1");
+
+// 监听实时场景变更
+await client.StartSceneEventsAsync(session.SessionId, "User1", OnSceneChanged);
+```
+
+### 引擎扩展层 - 具体实现
+```csharp
+// Unity特定的场景服务
+public class UnitySceneService : ISceneService
+{
+    public void AddToScene(Entity entity, Entity parent)
+    {
+        var gameObject = CreateGameObjectFromEntity(entity);
+        // Unity特定的场景操作
+    }
+}
+```
+
+## 📁 项目结构
 
 ```
-┌─────────────────┐    gRPC/HTTP2   ┌─────────────────┐
-│  Unity Editor   │◄──────────────► │ Brigine Server  │ ✅ 运行中
-│  + Plugin       │     50051       │                 │
-└─────────────────┘                 │  ┌───────────┐  │
-       🔄 开发中                     │  │Framework  │  │ ✅ 完成
-                                    │  │Manager    │  │
-┌─────────────────┐                 │  └───────────┘  │
-│  Godot Editor   │◄────────────────┤  ┌───────────┐  │
-│  + Plugin       │                 │  │Asset      │  │ ✅ 完成
-└─────────────────┘                 │  │Manager    │  │
-       🔄 开发中                     │  └───────────┘  │
-                                    │  ┌───────────┐  │
-┌─────────────────┐                 │  │Scene      │  │ ✅ 完成
-│  Godot Runtime  │◄────────────────┤  │Service    │  │
-│  + Integration  │                 │  └───────────┘  │
-└─────────────────┘                 └─────────────────┘
-       🔄 开发中
+Brigine/
+├── src/                              # 核心源代码
+│   ├── Brigine.Core/                    # 核心Framework和服务接口
+│   ├── Brigine.Communication.Server/    # gRPC服务器实现
+│   ├── Brigine.Communication.Client/    # gRPC客户端库
+│   ├── Brigine.Communication.Protos/    # Protocol Buffers定义
+│   └── Brigine.Communication.Client.Test/ # 客户端测试程序
+├── engine_packages/
+│   ├── com.brigine.unity/              # Unity引擎集成包
+│   ├── com.brigine.godot/              # Godot引擎集成包
+│   └── com.brigine.unreal/             # Unreal引擎集成包
+├── projects/
+│   ├── BrigineUnity/                   # Unity示例项目
+│   └── BrigineGodot/                   # Godot示例项目
+└── assets/                             # 测试资产文件
 ```
+
+## 🔧 核心功能
+
+### 本地Framework管理
+- **引擎集成**：每个引擎有自己的Framework实例
+- **资产加载**：支持USD、FBX、OBJ、GLTF等多种格式
+- **场景管理**：统一的Entity-Component模型
+- **生命周期**：完整的启动、更新、停止流程
+
+### 实时协作同步
+- **会话管理**：多用户协作会话创建和管理
+- **事件流**：基于gRPC流的实时事件通知
+- **状态同步**：确保所有客户端场景状态一致
+- **冲突解决**：智能的编辑冲突检测和锁定机制
+
+### 跨引擎支持
+- **Unity**：完整的Unity集成，支持GameObject和Component
+- **Godot**：Godot 4.x集成，支持Node和Scene
+- **Unreal**：Unreal Engine 5集成（开发中）
 
 ## 🚀 快速开始
 
-### 环境要求
-- ✅ .NET 8.0 SDK
-- 🔄 Unity 2022.3+ (可选，集成开发中)
-- 🔄 Godot 4.0+ (可选，集成开发中)
-
-### 1. 启动服务器 ✅
+### 1. 启动gRPC服务器
 ```bash
-git clone https://github.com/your-org/Brigine.git
-cd Brigine/src/Brigine.Communication.Server
+cd src/Brigine.Communication.Server
 dotnet run
-
-# 输出示例:
-# Brigine Communication Server starting...
-# gRPC endpoint: http://localhost:50051
-# Services registered:
-#   - FrameworkService: Framework lifecycle management
-#   - AssetService: Asset loading and management via Core.AssetManager
-#   - SceneService: Scene entity management via Core.ISceneService
 ```
 
-### 2. 测试客户端连接 ✅
+### 2. Unity客户端
+```csharp
+using Brigine.Core;
+using Brigine.Unity;
+
+public class BrigineExample : MonoBehaviour
+{
+    private Framework _framework;
+    
+    void Start()
+    {
+        // 创建本地Framework
+        var serviceRegistry = new ServiceRegistry();
+        UnityServiceProvider.RegisterUnityServices(serviceRegistry);
+        
+        _framework = new Framework(serviceRegistry, "Unity");
+        _framework.Start();
+        
+        // 加载USD场景
+        _framework.LoadAsset("path/to/scene.usda");
+    }
+    
+    void OnDestroy()
+    {
+        _framework?.Dispose();
+    }
+}
+```
+
+### 3. 协作功能
 ```csharp
 using Brigine.Communication.Client;
 
-// 连接到服务器
-var client = new BrigineClient("http://localhost:50051");
-
-// 启动框架实例
-var framework = await client.StartFrameworkAsync(new[] { "Unity" });
-Console.WriteLine($"Framework started: {framework.FrameworkId}");
-
-// 创建场景实体
-var entity = BrigineClient.CreateEntity("TestCube", "Mesh");
-await client.AddEntityToSceneAsync(framework.FrameworkId, entity);
-
-// 更新实体变换
-var transform = BrigineClient.CreateTransform(1, 2, 3);
-await client.UpdateEntityTransformAsync(framework.FrameworkId, entity.EntityId, transform);
+public class CollaborationExample : MonoBehaviour
+{
+    private BrigineClient _client;
+    
+    async void Start()
+    {
+        _client = new BrigineClient("http://localhost:50051");
+        
+        // 创建协作会话
+        var session = await _client.CreateSessionAsync("MyProject", "User1");
+        
+        // 监听场景变更
+        await _client.StartSceneEventsAsync(session.SessionId, "User1", OnSceneEvent);
+    }
+    
+    private void OnSceneEvent(SceneChangeEvent evt)
+    {
+        Debug.Log($"Scene changed: {evt.ChangeType} on {evt.EntityId}");
+        // 更新本地场景
+    }
+}
 ```
 
-### 3. Unity 集成 🔄
-```bash
-# 复制Unity Package到项目 (开发中)
-cp -r packages/com.brigine.unity /path/to/unity/project/Packages/
-```
+## 🛠️ 开发指南
 
-在Unity中：
-1. 🔄 打开 `Window > Brigine > Connection Panel` (开发中)
-2. 🔄 连接到 `localhost:50051`
-3. 🔄 创建或加载场景，点击 "Start Sync" (开发中)
+### 添加新引擎支持
 
-### 4. Godot 集成 🔄
-```bash
-# 复制插件到Godot项目 (开发中)
-cp -r addons/brigine /path/to/godot/project/addons/
-```
+1. **创建引擎包**:
+   ```
+   engine_packages/com.brigine.{engine}/
+   ├── Runtime/
+   │   ├── {Engine}ServiceProvider.cs
+   │   ├── {Engine}SceneService.cs
+   │   └── {Engine}Extensions.cs
+   └── package.json
+   ```
 
-## 🔌 完整的API示例
+2. **实现服务接口**:
+   ```csharp
+   public class {Engine}SceneService : ISceneService
+   {
+       public void AddToScene(Entity entity, Entity parent)
+       {
+           // 引擎特定的场景操作实现
+       }
+       
+       // 实现其他接口方法...
+   }
+   ```
 
-### C# 客户端 ✅
+3. **注册服务提供者**:
+   ```csharp
+   public static class {Engine}ServiceProvider
+   {
+       public static void Register{Engine}Services(IServiceRegistry registry)
+       {
+           registry.RegisterSingleton<ISceneService>(() => new {Engine}SceneService());
+           registry.RegisterSingleton<IUpdateService>(() => new {Engine}UpdateService());
+           registry.RegisterSingleton<ILogger, {Engine}Logger>();
+       }
+   }
+   ```
+
+### 自定义资产加载器
+
 ```csharp
-using var client = new BrigineClient("http://localhost:50051");
+public class CustomAssetSerializer : IAssetSerializer
+{
+    public object Load(string assetPath)
+    {
+        // 实现自定义资产加载逻辑
+        return LoadCustomFormat(assetPath);
+    }
+}
 
-// 启动框架（支持Unity、Unreal、Godot）
-var framework = await client.StartFrameworkAsync(new[] { "Unity", "Godot" });
-
-// 加载资产 (通过Core.AssetManager)
-var asset = await client.LoadAssetAsync(framework.FrameworkId, "models/cube.fbx");
-
-// 创建场景实体 (通过Core.ISceneService)
-var entity = BrigineClient.CreateEntity("MyCube", "Mesh");
-await client.AddEntityToSceneAsync(framework.FrameworkId, entity);
-
-// 更新变换 (完整的Transform支持)
-var transform = BrigineClient.CreateTransform(
-    position: new Vector3(1, 2, 3),
-    rotation: new Vector3(0, 45, 0),
-    scale: new Vector3(2, 2, 2)
-);
-await client.UpdateEntityTransformAsync(framework.FrameworkId, entity.EntityId, transform);
-
-// 查询场景状态
-var entities = await client.GetSceneEntitiesAsync(framework.FrameworkId);
-Console.WriteLine($"Scene contains {entities.Count} entities");
-
-// 获取框架状态
-var status = await client.GetFrameworkStatusAsync(framework.FrameworkId);
-Console.WriteLine($"Framework running: {status.IsRunning}");
-Console.WriteLine($"Registered services: {string.Join(", ", status.AvailableServices)}");
+// 注册自定义加载器
+serviceRegistry.RegisterSingleton<IAssetSerializer>(() => new CustomAssetSerializer());
 ```
 
-### Unity特定API 🔄 (开发中)
-```csharp
-using Brigine.Communication.Unity;
+## 📊 性能特性
 
-// Unity专用客户端 (需要YetAnotherHttpHandler)
-var handler = new YetAnotherHttpHandler();
-var unityClient = new BrigineUnityClient("http://localhost:50051", handler);
+- **增量同步**：只传输变更的数据
+- **事件驱动**：避免轮询，实时响应变更
+- **本地优化**：每个引擎使用最适合的数据结构
+- **并发支持**：多用户同时编辑不同区域
 
-// Unity扩展方法
-var transform = BrigineUnityExtensions.CreateTransformFromUnity(gameObject.transform);
-var entity = BrigineUnityExtensions.CreateEntityFromGameObject(gameObject);
-```
+## 🔍 与其他方案的对比
 
-## 📊 支持的数据类型
+### vs 传统引擎插件
+- ✅ **跨引擎**：不限制于单一引擎生态
+- ✅ **实时协作**：原生支持多用户编辑
+- ✅ **数据驱动**：纯数据同步，性能更好
 
-### 几何体 ✅
-- ✅ Entity (ID、名称、类型、父子关系)
-- ✅ Transform (位置、旋转、缩放)
-- 🔄 Mesh (顶点、法线、UV) - 基础支持，USD集成中
-- 🔄 Curves (计划中)
+### vs 云端渲染方案
+- ✅ **本地性能**：充分利用本地GPU性能
+- ✅ **离线工作**：不依赖网络连接进行本地编辑
+- ✅ **引擎原生**：保持各引擎的原生工作流
 
-### 资产管理 ✅
-- ✅ 异步加载/卸载
-- ✅ 引用计数管理
-- ✅ 资产类型检测
-- ✅ 依赖关系追踪
+## 🎯 使用场景
 
-### 框架管理 ✅
-- ✅ 多框架实例
-- ✅ 动态服务注册
-- ✅ 生命周期管理
-- ✅ 配置系统
+- **跨引擎团队协作**：Unity美术 + Godot程序 + Unreal设计师
+- **实时预览**：在不同引擎中同时预览同一场景
+- **资产管道**：统一的USD资产管道，支持多引擎导出
+- **远程协作**：分布式团队的实时场景编辑
 
-### 材质 🔄 (规划中)
-- 🔄 基础材质属性 (颜色、金属度、粗糙度)
-- 🔄 纹理贴图
-- 🔄 节点材质 (计划中)
+## 📝 开发状态
 
-### 灯光 🔄 (规划中)
-- 🔄 方向光、点光源、聚光灯
-- 🔄 强度、颜色、阴影设置
+### ✅ 已完成 (95%+)
+- **Core架构**：Framework、ServiceRegistry、Entity系统
+- **gRPC通信**：完整的服务器和客户端实现
+- **Unity集成**：完整的Unity支持和示例项目
+- **协作功能**：会话管理、实时事件、锁定机制
 
-## 🛠️ 当前架构特性
+### 🚧 进行中 (15-20%)
+- **Godot集成**：基础结构完成，运行时集成进行中
+- **Unreal集成**：项目结构创建，核心功能开发中
+- **USD支持**：框架存在，完整USD.NET集成待完成
 
-### 企业级FrameworkManager ✅
-```csharp
-// 多框架实例管理
-var frameworkManager = new FrameworkManager(logger);
-
-// 动态引擎服务加载
-var unityFramework = frameworkManager.CreateFramework(["Unity"], config);
-var godotFramework = frameworkManager.CreateFramework(["Godot"], config);
-
-// 并发运行
-frameworkManager.StartFramework(unityFramework);
-frameworkManager.StartFramework(godotFramework);
-
-// 状态监控
-var status = frameworkManager.GetFrameworkStatus(frameworkId);
-Console.WriteLine($"Registered services: {string.Join(", ", status.RegisteredServices)}");
-```
-
-### 完整的gRPC服务 ✅
-```csharp
-// 框架服务 - 生命周期管理
-FrameworkService.StartFramework()   // ✅ 创建Framework实例
-FrameworkService.StopFramework()    // ✅ 关闭Framework实例
-FrameworkService.GetFrameworkStatus() // ✅ 查询运行状态
-FrameworkService.RegisterFunctionProvider() // ✅ 动态加载引擎服务
-
-// 资产服务 - 通过Core.AssetManager
-AssetService.LoadAsset()      // ✅ 异步资产加载
-AssetService.UnloadAsset()    // ✅ 资产卸载清理
-AssetService.ListAssets()     // ✅ 已加载资产列表
-
-// 场景服务 - 通过Core.ISceneService  
-SceneService.AddEntityToScene()    // ✅ 创建Entity对象
-SceneService.UpdateEntityTransform() // ✅ 变换数据更新
-SceneService.RemoveEntityFromScene() // ✅ 实体删除
-SceneService.GetSceneEntities()    // ✅ 场景实体查询
-```
-
-## 📈 性能指标
-
-### 当前性能 ✅
-- 场景同步延迟：< 100ms (本地网络，已测试)
-- 支持实体数量：1000+ 个 (已验证)
-- 内存占用：< 150MB (服务器运行时)
-- 并发框架：支持多个Framework实例
-
-### 优化特性 ✅
-- 异步操作：所有API使用async/await
-- 资源管理：自动引用计数和清理
-- 错误恢复：完善的异常处理机制
-- 日志系统：Microsoft.Extensions.Logging集成
-
-## 🐛 已知限制
-
-- 目前Unity和Godot插件仍在开发中，尚未完成实时同步
-- USD转换器仅有基础框架，完整功能开发中
-- 材质和灯光系统设计完成但尚未实现
-- 大型场景性能优化待进一步测试
-
-## 📋 开发路线图
-
-### v0.2.0 - 实时场景同步 (目标: 2025年3月) 🎯
-- [ ] 完成Unity编辑器插件 (场景变更监听、实时发送)
-- [ ] 完成Godot运行时集成 (数据接收、场景更新)
-- [ ] 实现基础Transform同步功能
-- [ ] 提供完整的端到端演示
-
-### v0.3.0 - 完整USD支持 (目标: 2025年6月)
-- [ ] USD.NET库完整集成
-- [ ] 材质系统实现
-- [ ] 场景层次结构同步
-- [ ] 性能优化和内存管理
-
-### v0.4.0 - 多用户协作 (目标: 2025年9月)
-- [ ] 用户会话管理
-- [ ] 实时冲突检测和解决
-- [ ] 操作历史记录和回滚
-
-## 📄 文档和学习资源
-
-### 核心文档 📚
-- **[PROGRESS_STATUS.md](PROGRESS_STATUS.md)** - 📊 当前开发进度和功能状态
-- **[ROADMAP.md](ROADMAP.md)** - 🗺️ 详细的版本计划和里程碑
-- **[private/BrigineDocs/](private/BrigineDocs/)** - 🏗️ 架构决策和技术文档
-
-### 开发指南
-1. **新对话必读**: PROGRESS_STATUS.md了解当前进度
-2. **架构理解**: private/BrigineDocs/下的技术文档
-3. **API参考**: 查看各服务的Proto定义文件
-4. **测试验证**: 按照快速开始章节验证功能
+### 🎯 下一步计划
+1. 完善Godot运行时集成
+2. 实现完整的USD资产管道
+3. 添加Unreal Engine支持
+4. 性能优化和压力测试
 
 ## 🤝 贡献指南
 
-### 当前开发重点
-1. **高优先级**: Unity编辑器插件开发
-2. **中优先级**: Godot运行时集成
-3. **长期目标**: USD完整支持
-
-### 开发环境设置 ✅
-```bash
-git clone https://github.com/your-org/Brigine.git
-cd Brigine
-
-# 构建和测试
-dotnet restore
-dotnet build    # ✅ 验证通过
-dotnet test     # 🔄 测试覆盖率提升中
-
-# 启动服务器
-cd src/Brigine.Communication.Server  
-dotnet run      # ✅ 服务器可正常启动
-```
+1. Fork项目
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启Pull Request
 
 ## 📄 许可证
 
-MIT License - 详见 [LICENSE](LICENSE.md) 文件
+本项目采用MIT许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
----
+## 🙏 致谢
 
-**Brigine - 专业的跨引擎 3D 场景协作工具** 🔧⚡
-
-> 💡 **提示**: 查看 [PROGRESS_STATUS.md](PROGRESS_STATUS.md) 了解详细的开发进度和下一步工作计划
+- [Remedy Entertainment](https://www.remedygames.com/) - 实时世界编辑技术的灵感来源
+- [Pixar USD](https://graphics.pixar.com/usd/) - 通用场景描述格式
+- [gRPC](https://grpc.io/) - 高性能RPC框架
+- [Unity](https://unity.com/)、[Godot](https://godotengine.org/)、[Unreal Engine](https://www.unrealengine.com/) - 游戏引擎支持

@@ -9,6 +9,10 @@ using Brigine.Unity;
 // 注意：需要安装YetAnotherHttpHandler包才能使用gRPC功能
 using Cysharp.Net.Http;
 
+/// <summary>
+/// Brigine gRPC协作示例 - 展示本地Framework + 远程协作的模式
+/// 本地Framework处理引擎特定操作，gRPC客户端处理协作同步
+/// </summary>
 public class BrigineGrpcExample : MonoBehaviour
 {
     [Header("gRPC Settings")]
@@ -19,11 +23,12 @@ public class BrigineGrpcExample : MonoBehaviour
     [Header("Test Settings")]
     [SerializeField] private string testAssetPath = "models/cube.usda";
 
-    // 注意：以下代码需要安装YetAnotherHttpHandler包
-    // private BrigineUnityClient _grpcClient;
+    // 本地Framework实例 - 处理Unity特定操作
     private Framework _localFramework;
-    private string _remoteFrameworkId;
+    
+    // gRPC客户端 - 处理协作同步
     private BrigineClient _grpcClient;
+    private string _sessionId;
 
     void Start()
     {
@@ -39,6 +44,9 @@ public class BrigineGrpcExample : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 初始化本地Framework实例
+    /// </summary>
     private void InitializeLocalFramework()
     {
         try
@@ -46,7 +54,7 @@ public class BrigineGrpcExample : MonoBehaviour
             var serviceRegistry = new ServiceRegistry();
             UnityServiceProvider.RegisterUnityServices(serviceRegistry);
             
-            _localFramework = new Framework(serviceRegistry);
+            _localFramework = new Framework(serviceRegistry, "Unity");
             _localFramework.Start();
             
             Debug.Log("[Brigine] Local framework initialized");
@@ -57,6 +65,9 @@ public class BrigineGrpcExample : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 连接到协作服务器
+    /// </summary>
     public async void ConnectToServer()
     {
         try
@@ -64,28 +75,29 @@ public class BrigineGrpcExample : MonoBehaviour
             // 创建YetAnotherHttpHandler
             var httpHandler = new YetAnotherHttpHandler();
             
-            // 创建Unity专用的gRPC客户端
+            // 创建gRPC客户端
             _grpcClient = new BrigineClient(serverAddress, httpHandler);
             
             Debug.Log($"[Brigine] Connecting to server: {serverAddress}");
 
-            // 启动远程框架
-            var startResponse = await _grpcClient.StartFrameworkAsync(
-                new[] { "Unity" },
+            // 创建协作会话
+            var sessionResponse = await _grpcClient.CreateSessionAsync(
+                "UnityTestProject", 
+                "UnityUser",
                 new Dictionary<string, string> { { "client", "Unity" } }
             );
 
-            if (startResponse.Success)
+            if (sessionResponse.Success)
             {
-                _remoteFrameworkId = startResponse.FrameworkId;
-                Debug.Log($"[Brigine] Remote framework started: {_remoteFrameworkId}");
+                _sessionId = sessionResponse.SessionId;
+                Debug.Log($"[Brigine] Collaboration session created: {_sessionId}");
 
-                // 获取框架状态
-                await GetFrameworkStatus();
+                // 开始监听场景事件
+                await StartSceneEventListening();
             }
             else
             {
-                Debug.LogError($"[Brigine] Failed to start remote framework: {startResponse.ErrorMessage}");
+                Debug.LogError($"[Brigine] Failed to create session: {sessionResponse.ErrorMessage}");
             }
         }
         catch (Exception ex)
@@ -94,29 +106,84 @@ public class BrigineGrpcExample : MonoBehaviour
         }
     }
 
-    public async void LoadAssetRemotely()
+    /// <summary>
+    /// 开始监听场景事件
+    /// </summary>
+    private async System.Threading.Tasks.Task StartSceneEventListening()
     {
-        if (_grpcClient == null || string.IsNullOrEmpty(_remoteFrameworkId))
+        try
         {
-            Debug.LogWarning("[Brigine] Not connected to remote server");
+            await _grpcClient.StartSceneEventsAsync(_sessionId, "UnityUser", OnSceneEventReceived);
+            Debug.Log("[Brigine] Scene event listening started");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[Brigine] Failed to start scene event listening: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 处理接收到的场景事件
+    /// </summary>
+    private void OnSceneEventReceived(Brigine.Communication.Protos.SceneChangeEvent sceneEvent)
+    {
+        Debug.Log($"[Brigine] Scene event received: {sceneEvent.ChangeType} on entity {sceneEvent.EntityId}");
+        
+        // 在主线程中更新本地场景
+        UnityMainThreadDispatcher.Enqueue(() =>
+        {
+            UpdateLocalSceneFromEvent(sceneEvent);
+        });
+    }
+
+    /// <summary>
+    /// 根据远程事件更新本地场景
+    /// </summary>
+    private void UpdateLocalSceneFromEvent(Brigine.Communication.Protos.SceneChangeEvent sceneEvent)
+    {
+        if (_localFramework == null) return;
+
+        try
+        {
+            switch (sceneEvent.ChangeType)
+            {
+                case Brigine.Communication.Protos.SceneChangeType.EntityAdded:
+                    Debug.Log($"[Brigine] Adding entity to local scene: {sceneEvent.EntityId}");
+                    // 这里可以添加从远程数据创建本地实体的逻辑
+                    break;
+                    
+                case Brigine.Communication.Protos.SceneChangeType.EntityRemoved:
+                    Debug.Log($"[Brigine] Removing entity from local scene: {sceneEvent.EntityId}");
+                    _localFramework.RemoveEntity(sceneEvent.EntityId);
+                    break;
+                    
+                case Brigine.Communication.Protos.SceneChangeType.EntityModified:
+                    Debug.Log($"[Brigine] Updating entity in local scene: {sceneEvent.EntityId}");
+                    // 这里可以添加更新本地实体的逻辑
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[Brigine] Failed to update local scene: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 加载资产到本地场景
+    /// </summary>
+    public void LoadAssetLocally()
+    {
+        if (_localFramework == null)
+        {
+            Debug.LogWarning("[Brigine] Local framework not initialized");
             return;
         }
 
         try
         {
-            var loadResponse = await _grpcClient.LoadAssetAsync(
-                _remoteFrameworkId,
-                testAssetPath
-            );
-
-            if (loadResponse.Success)
-            {
-                Debug.Log($"[Brigine] Asset loaded remotely: {loadResponse.AssetId}");
-            }
-            else
-            {
-                Debug.LogError($"[Brigine] Failed to load asset: {loadResponse.ErrorMessage}");
-            }
+            _localFramework.LoadAsset(testAssetPath);
+            Debug.Log($"[Brigine] Asset loaded locally: {testAssetPath}");
         }
         catch (Exception ex)
         {
@@ -124,11 +191,14 @@ public class BrigineGrpcExample : MonoBehaviour
         }
     }
 
-    public async void AddEntityToRemoteScene()
+    /// <summary>
+    /// 添加当前GameObject到协作场景
+    /// </summary>
+    public async void AddEntityToCollaborativeScene()
     {
-        if (_grpcClient == null || string.IsNullOrEmpty(_remoteFrameworkId))
+        if (_grpcClient == null || string.IsNullOrEmpty(_sessionId))
         {
-            Debug.LogWarning("[Brigine] Not connected to remote server");
+            Debug.LogWarning("[Brigine] Not connected to collaboration server");
             return;
         }
 
@@ -136,18 +206,15 @@ public class BrigineGrpcExample : MonoBehaviour
         {
             var entity = BrigineUnityExtensions.CreateEntityFromGameObject(this.gameObject);
 
-            var addResponse = await _grpcClient.AddEntityToSceneAsync(
-                _remoteFrameworkId,
-                entity
-            );
+            var createResponse = await _grpcClient.CreateEntityAsync(_sessionId, "UnityUser", entity);
 
-            if (addResponse.Success)
+            if (createResponse.Success)
             {
-                Debug.Log($"[Brigine] Entity added to remote scene: {addResponse.EntityId}");
+                Debug.Log($"[Brigine] Entity added to collaborative scene: {createResponse.EntityId}");
             }
             else
             {
-                Debug.LogError($"[Brigine] Failed to add entity: {addResponse.ErrorMessage}");
+                Debug.LogError($"[Brigine] Failed to add entity: {createResponse.ErrorMessage}");
             }
         }
         catch (Exception ex)
@@ -156,42 +223,42 @@ public class BrigineGrpcExample : MonoBehaviour
         }
     }
 
-    private async System.Threading.Tasks.Task GetFrameworkStatus()
+    /// <summary>
+    /// 获取本地Framework状态
+    /// </summary>
+    private string GetLocalFrameworkStatus()
     {
-        try
-        {
-            var statusResponse = await _grpcClient.GetFrameworkStatusAsync(_remoteFrameworkId);
-            if (statusResponse.Success)
-            {
-                Debug.Log($"[Brigine] Framework Status:");
-                Debug.Log($"  - Running: {statusResponse.Status.IsRunning}");
-                // Debug.Log($"  - Services: {string.Join(", ", statusResponse.Status.AvailableServices)}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"[Brigine] Failed to get status: {ex.Message}");
-        }
+        if (_localFramework == null)
+            return "Local framework not initialized";
+            
+        return $"Local Framework Status:\n" +
+               $"- Engine: {_localFramework.EngineType}\n" +
+               $"- Running: {_localFramework.IsRunning}\n" +
+               $"- Entities: {_localFramework.GetSceneEntities().Count()}";
     }
 
+    /// <summary>
+    /// 断开服务器连接
+    /// </summary>
     public async void DisconnectFromServer()
     {
-        if (_grpcClient != null && !string.IsNullOrEmpty(_remoteFrameworkId))
+        if (_grpcClient != null && !string.IsNullOrEmpty(_sessionId))
         {
             try
             {
-                await _grpcClient.StopFrameworkAsync(_remoteFrameworkId);
-                Debug.Log("[Brigine] Remote framework stopped");
+                await _grpcClient.LeaveSessionAsync(_sessionId, "UnityUser");
+                Debug.Log("[Brigine] Left collaboration session");
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[Brigine] Failed to stop remote framework: {ex.Message}");
+                Debug.LogError($"[Brigine] Failed to leave session: {ex.Message}");
             }
         }
 
         _grpcClient?.Dispose();
         _grpcClient = null;
-        _remoteFrameworkId = null;
+        _sessionId = null;
+        
         Debug.Log("[Brigine] Disconnected from server");
     }
 
@@ -199,10 +266,8 @@ public class BrigineGrpcExample : MonoBehaviour
     {
         // DisconnectFromServer();
         
-        if (_localFramework != null && _localFramework.IsRunning)
-        {
-            _localFramework.Stop();
-        }
+        // 清理本地Framework
+        _localFramework?.Dispose();
     }
 
     // Unity Inspector按钮
@@ -213,18 +278,23 @@ public class BrigineGrpcExample : MonoBehaviour
         // ConnectToServer();
     }
 
-    [ContextMenu("Load Asset Remotely")]
-    public void LoadAssetRemotelyMenu()
+    [ContextMenu("Load Asset Locally")]
+    public void LoadAssetLocallyMenu()
     {
-        Debug.LogWarning("[Brigine] gRPC功能需要安装YetAnotherHttpHandler包。请参考README.md中的说明。");
-        // LoadAssetRemotely();
+        LoadAssetLocally();
     }
 
-    [ContextMenu("Add Entity to Remote Scene")]
-    public void AddEntityToRemoteSceneMenu()
+    [ContextMenu("Add Entity to Collaborative Scene")]
+    public void AddEntityToCollaborativeSceneMenu()
     {
         Debug.LogWarning("[Brigine] gRPC功能需要安装YetAnotherHttpHandler包。请参考README.md中的说明。");
-        // AddEntityToRemoteScene();
+        // AddEntityToCollaborativeScene();
+    }
+
+    [ContextMenu("Get Local Framework Status")]
+    public void GetLocalFrameworkStatusMenu()
+    {
+        Debug.Log(GetLocalFrameworkStatus());
     }
 
     [ContextMenu("Disconnect from Server")]

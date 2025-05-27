@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+option csharp_namespace = "Brigine.Communication.Protos";
+
+package brigine.communication;
+
+import "google/protobuf/any.proto";
+
+// 会话服务 - V2架构的核心，管理协作会话
+service SessionService {
+  // 创建协作会话
+  rpc CreateSession (CreateSessionRequest) returns (CreateSessionResponse);
+  // 加入会话
+  rpc JoinSession (JoinSessionRequest) returns (JoinSessionResponse);
+  // 离开会话
+  rpc LeaveSession (LeaveSessionRequest) returns (LeaveSessionResponse);
+  // 获取会话信息
+  rpc GetSessionInfo (GetSessionInfoRequest) returns (GetSessionInfoResponse);
+  // 会话事件流
+  rpc SessionEvents (SessionEventsRequest) returns (stream SessionEvent);
+}
+
+// 创建会话请求
+message CreateSessionRequest {
+  string project_name = 1;
+  string creator_id = 2;
+  map<string, string> metadata = 3;
+}
+
+// 创建会话响应
+message CreateSessionResponse {
+  bool success = 1;
+  string error_message = 2;
+  string session_id = 3;
+  SessionInfo session_info = 4;
+}
+
+// 加入会话请求
+message JoinSessionRequest {
+  string session_id = 1;
+  string user_id = 2;
+  string client_type = 3; // "Unity", "Godot", "Blender"
+  map<string, string> client_metadata = 4;
+}
+
+// 加入会话响应
+message JoinSessionResponse {
+  bool success = 1;
+  string error_message = 2;
+  SessionInfo session_info = 3;
+  repeated UserInfo active_users = 4;
+}
+
+// 离开会话请求
+message LeaveSessionRequest {
+  string session_id = 1;
+  string user_id = 2;
+}
+
+// 离开会话响应
+message LeaveSessionResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 获取会话信息请求
+message GetSessionInfoRequest {
+  string session_id = 1;
+}
+
+// 获取会话信息响应
+message GetSessionInfoResponse {
+  bool success = 1;
+  string error_message = 2;
+  SessionInfo session_info = 3;
+  repeated UserInfo active_users = 4;
+}
+
+// 会话事件请求
+message SessionEventsRequest {
+  string session_id = 1;
+  string user_id = 2;
+  repeated SessionEventType event_types = 3; // 空表示订阅所有事件
+}
+
+// 会话事件
+message SessionEvent {
+  SessionEventType event_type = 1;
+  string session_id = 2;
+  string user_id = 3;
+  int64 timestamp = 4;
+  google.protobuf.Any event_data = 5;
+}
+
+// 会话信息
+message SessionInfo {
+  string session_id = 1;
+  string project_name = 2;
+  string creator_id = 3;
+  int64 created_time = 4;
+  SessionStatus status = 5;
+  map<string, string> metadata = 6;
+  int32 active_user_count = 7;
+}
+
+// 用户信息
+message UserInfo {
+  string user_id = 1;
+  string display_name = 2;
+  string client_type = 3;
+  int64 joined_time = 4;
+  UserStatus status = 5;
+  map<string, string> metadata = 6;
+}
+
+// 会话事件类型
+enum SessionEventType {
+  USER_JOINED = 0;
+  USER_LEFT = 1;
+  SCENE_CHANGED = 2;
+  ASSET_CHANGED = 3;
+  LOCK_ACQUIRED = 4;
+  LOCK_RELEASED = 5;
+  SESSION_UPDATED = 6;
+}
+
+// 会话状态
+enum SessionStatus {
+  ACTIVE = 0;
+  PAUSED = 1;
+  CLOSED = 2;
+}
+
+// 用户状态
+enum UserStatus {
+  ONLINE = 0;
+  AWAY = 1;
+  BUSY = 2;
+  OFFLINE = 3;
+} 

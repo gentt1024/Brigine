@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Brigine.Core
 {
@@ -177,7 +178,7 @@ namespace Brigine.Core
 
     internal class DefaultSceneService : ISceneService
     {
-        private readonly ConcurrentDictionary<string, Entity> _entities = new();
+        private readonly List<Entity> _entities = new();
         private readonly ILogger _logger;
 
         public DefaultSceneService(IServiceRegistry registry)
@@ -187,43 +188,38 @@ namespace Brigine.Core
 
         public DefaultSceneService() : this(new ServiceRegistry()) { }
 
-        public IEnumerable<Entity> GetEntities() => _entities.Values;
+        public IEnumerable<Entity> GetEntities() => _entities;
 
         public void AddToScene(Entity entity, Entity parent)
         {
-            _entities[entity.Id] = entity;
-            if (parent != null)
+            if (entity != null && !_entities.Contains(entity))
             {
-                entity.Parent = parent;
-                parent.Children.Add(entity);
+                _entities.Add(entity);
+                _logger?.Info($"Entity added to default scene: {entity.Name}");
             }
-            _logger?.Info($"Added entity {entity.Name} to scene");
         }
 
         public void UpdateTransform(Entity entity, Transform transform)
         {
-            if (_entities.ContainsKey(entity.Id))
+            if (entity != null)
             {
                 entity.Transform = transform;
-                _logger?.Debug($"Updated transform for entity {entity.Name}");
+                _logger?.Debug($"Transform updated for entity: {entity.Name}");
             }
         }
 
         public Entity GetEntity(string entityId)
         {
-            _entities.TryGetValue(entityId, out var entity);
-            return entity;
+            return _entities.FirstOrDefault(e => e.Id == entityId);
         }
 
         public void RemoveFromScene(string entityId)
         {
-            if (_entities.TryRemove(entityId, out var entity))
+            var entity = GetEntity(entityId);
+            if (entity != null)
             {
-                if (entity.Parent != null)
-                {
-                    entity.Parent.Children.Remove(entity);
-                }
-                _logger?.Info($"Removed entity {entity.Name} from scene");
+                _entities.Remove(entity);
+                _logger?.Info($"Entity removed from default scene: {entity.Name}");
             }
         }
     }

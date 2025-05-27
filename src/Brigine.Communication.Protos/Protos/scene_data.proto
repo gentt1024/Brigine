@@ -1,0 +1,237 @@
+syntax = "proto3";
+
+option csharp_namespace = "Brigine.Communication.Protos";
+
+package brigine.communication;
+
+import "Protos/common.proto";
+
+// 场景数据服务 - 纯数据CRUD，引擎无关
+service SceneDataService {
+  // 场景数据操作
+  rpc GetSceneData (GetSceneDataRequest) returns (GetSceneDataResponse);
+  rpc UpdateSceneData (UpdateSceneDataRequest) returns (UpdateSceneDataResponse);
+  
+  // 实体操作
+  rpc CreateEntity (CreateEntityRequest) returns (CreateEntityResponse);
+  rpc UpdateEntity (UpdateEntityRequest) returns (UpdateEntityResponse);
+  rpc DeleteEntity (DeleteEntityRequest) returns (DeleteEntityResponse);
+  rpc GetEntity (GetEntityRequest) returns (GetEntityResponse);
+  rpc QueryEntities (QueryEntitiesRequest) returns (QueryEntitiesResponse);
+  
+  // 批量操作
+  rpc BatchUpdate (BatchUpdateRequest) returns (BatchUpdateResponse);
+  
+  // 锁定机制
+  rpc LockEntity (LockEntityRequest) returns (LockEntityResponse);
+  rpc UnlockEntity (UnlockEntityRequest) returns (UnlockEntityResponse);
+  rpc GetEntityLocks (GetEntityLocksRequest) returns (GetEntityLocksResponse);
+}
+
+// 获取场景数据请求
+message GetSceneDataRequest {
+  string session_id = 1;
+  string scene_id = 2; // 可选，默认为当前场景
+}
+
+// 获取场景数据响应
+message GetSceneDataResponse {
+  bool success = 1;
+  string error_message = 2;
+  SceneData scene_data = 3;
+}
+
+// 更新场景数据请求
+message UpdateSceneDataRequest {
+  string session_id = 1;
+  string user_id = 2;
+  SceneData scene_data = 3;
+}
+
+// 更新场景数据响应
+message UpdateSceneDataResponse {
+  bool success = 1;
+  string error_message = 2;
+  int64 version = 3;
+}
+
+// 创建实体请求
+message CreateEntityRequest {
+  string session_id = 1;
+  string user_id = 2;
+  SceneEntity entity = 3;
+}
+
+// 创建实体响应
+message CreateEntityResponse {
+  bool success = 1;
+  string error_message = 2;
+  string entity_id = 3;
+  int64 version = 4;
+}
+
+// 更新实体请求
+message UpdateEntityRequest {
+  string session_id = 1;
+  string user_id = 2;
+  SceneEntity entity = 3;
+}
+
+// 更新实体响应
+message UpdateEntityResponse {
+  bool success = 1;
+  string error_message = 2;
+  int64 version = 3;
+}
+
+// 删除实体请求
+message DeleteEntityRequest {
+  string session_id = 1;
+  string user_id = 2;
+  string entity_id = 3;
+}
+
+// 删除实体响应
+message DeleteEntityResponse {
+  bool success = 1;
+  string error_message = 2;
+  int64 version = 3;
+}
+
+// 获取实体请求
+message GetEntityRequest {
+  string session_id = 1;
+  string entity_id = 2;
+}
+
+// 获取实体响应
+message GetEntityResponse {
+  bool success = 1;
+  string error_message = 2;
+  SceneEntity entity = 3;
+}
+
+// 查询实体请求
+message QueryEntitiesRequest {
+  string session_id = 1;
+  EntityQuery query = 2;
+}
+
+// 查询实体响应
+message QueryEntitiesResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated SceneEntity entities = 3;
+  int32 total_count = 4;
+}
+
+// 批量更新请求
+message BatchUpdateRequest {
+  string session_id = 1;
+  string user_id = 2;
+  repeated EntityOperation operations = 3;
+}
+
+// 批量更新响应
+message BatchUpdateResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated OperationResult results = 3;
+  int64 version = 4;
+}
+
+// 锁定实体请求
+message LockEntityRequest {
+  string session_id = 1;
+  string user_id = 2;
+  string entity_id = 3;
+  LockType lock_type = 4;
+}
+
+// 锁定实体响应
+message LockEntityResponse {
+  bool success = 1;
+  string error_message = 2;
+  EntityLock lock_info = 3;
+}
+
+// 解锁实体请求
+message UnlockEntityRequest {
+  string session_id = 1;
+  string user_id = 2;
+  string entity_id = 3;
+}
+
+// 解锁实体响应
+message UnlockEntityResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// 获取实体锁定信息请求
+message GetEntityLocksRequest {
+  string session_id = 1;
+  repeated string entity_ids = 2; // 空表示获取所有锁定
+}
+
+// 获取实体锁定信息响应
+message GetEntityLocksResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated EntityLock locks = 3;
+}
+
+// 场景数据
+message SceneData {
+  string scene_id = 1;
+  string name = 2;
+  repeated SceneEntity entities = 3;
+  SceneMetadata metadata = 4;
+  int64 version = 5;
+}
+
+// 实体查询
+message EntityQuery {
+  repeated string entity_ids = 1; // 指定ID查询
+  repeated string types = 2; // 按类型过滤
+  string parent_id = 3; // 按父实体过滤
+  repeated string tags = 4; // 按标签过滤
+  BoundingBox bounding_box = 5; // 按空间范围过滤
+  int32 limit = 6; // 结果数量限制
+  int32 offset = 7; // 分页偏移
+}
+
+// 实体操作
+message EntityOperation {
+  OperationType operation_type = 1;
+  SceneEntity entity = 2;
+}
+
+// 操作结果
+message OperationResult {
+  bool success = 1;
+  string error_message = 2;
+  string entity_id = 3;
+}
+
+// 实体锁定信息
+message EntityLock {
+  string entity_id = 1;
+  string user_id = 2;
+  LockType lock_type = 3;
+  int64 acquired_time = 4;
+  int64 expires_time = 5; // 0表示永不过期
+}
+
+// 操作类型
+enum OperationType {
+  CREATE = 0;
+  UPDATE = 1;
+  DELETE = 2;
+}
+
+// 锁定类型
+enum LockType {
+  SHARED = 0;    // 共享锁，允许多个用户读取
+  EXCLUSIVE = 1; // 排他锁，只允许一个用户修改
+} 

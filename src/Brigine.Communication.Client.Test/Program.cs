@@ -1,204 +1,321 @@
 using Brigine.Communication.Client;
+using Brigine.Communication.Protos;
 
-Console.WriteLine("=== Brigine Communication Client Test ===");
-Console.WriteLine("测试真实的gRPC服务器和客户端功能");
+Console.WriteLine("=== Brigine 数据即服务架构测试 ===");
+Console.WriteLine("测试新的会话管理、场景数据同步和实时事件流");
+Console.WriteLine();
 
 try
 {
-    // 创建客户端 - 连接到真实的gRPC服务器
-    using var client = new BrigineClient("http://localhost:50051");
-    
-    Console.WriteLine("✅ 连接到Brigine服务器...");
-    
-    // 启动框架 - 使用真实的Framework Manager
-    Console.WriteLine("\n🚀 启动框架...");
-    var startResponse = await client.StartFrameworkAsync(
-        new[] { "Default" },
-        new Dictionary<string, string> { 
-            { "test_mode", "client_test" },
-        }
-    );
-    
-    if (!startResponse.Success)
-    {
-        Console.WriteLine($"❌ 框架启动失败: {startResponse.ErrorMessage}");
-        return;
-    }
-    
-    Console.WriteLine($"✅ 框架启动成功，ID: {startResponse.FrameworkId}");
-    
-    // 获取框架状态 - 验证真实的FrameworkManager状态
-    var statusResponse = await client.GetFrameworkStatusAsync(startResponse.FrameworkId);
-    if (statusResponse.Success)
-    {
-        Console.WriteLine($"📊 框架状态: 运行中={statusResponse.Status.IsRunning}");
-        Console.WriteLine($"🔧 可用服务: {string.Join(", ", statusResponse.Status.AvailableServices)}");
-        Console.WriteLine($"⚙️  配置项: {string.Join(", ", statusResponse.Status.Configuration.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
-        Console.WriteLine($"⏰ 启动时间: {DateTimeOffset.FromUnixTimeSeconds(statusResponse.Status.StartTime):yyyy-MM-dd HH:mm:ss}");
-    }
-    
-    // 测试真实的资产加载 - 使用cube.usda文件
-    Console.WriteLine("\n📦 测试资产加载...");
-    
-    // 获取当前工作目录并构建cube.usda的完整路径
-    var currentDirectory = Directory.GetCurrentDirectory();
-    var usdPath = Path.Combine(currentDirectory, "assets", "models", "cube.usda");
-    
-    Console.WriteLine($"📂 资产路径: {usdPath}");
-    
-    if (!File.Exists(usdPath))
-    {
-        Console.WriteLine($"❌ 资产文件不存在: {usdPath}");
-        Console.WriteLine($"📁 当前工作目录: {currentDirectory}");
-    }
-    else
-    {
-        Console.WriteLine($"✅ 找到资产文件: {new FileInfo(usdPath).Length} bytes");
-        
-        var loadResponse = await client.LoadAssetAsync(
-            startResponse.FrameworkId,
-            usdPath,
-            async: false,
-            new Dictionary<string, string> { 
-                { "type", "usd_scene" },
-                { "format", "usda" }
-            }
-        );
-        
-        if (loadResponse.Success)
-        {
-            Console.WriteLine($"✅ 资产加载成功!");
-            Console.WriteLine($"   📋 资产ID: {loadResponse.AssetId}");
-            Console.WriteLine($"   📄 资产名称: {loadResponse.AssetInfo.Name}");
-            Console.WriteLine($"   📂 资产路径: {loadResponse.AssetInfo.Path}");
-            Console.WriteLine($"   🏷️  资产类型: {loadResponse.AssetInfo.Type}");
-            Console.WriteLine($"   📊 文件大小: {loadResponse.AssetInfo.Size} bytes");
-            Console.WriteLine($"   ⏰ 最后修改: {DateTimeOffset.FromUnixTimeSeconds(loadResponse.AssetInfo.LastModified):yyyy-MM-dd HH:mm:ss}");
-            
-            // 测试资产信息获取
-            var assetInfoResponse = await client.GetAssetInfoAsync(startResponse.FrameworkId, loadResponse.AssetId);
-            if (assetInfoResponse.Success)
-            {
-                Console.WriteLine($"✅ 资产信息获取成功: {assetInfoResponse.AssetInfo.Name}");
-            }
-            
-            // 测试资产列表
-            var listAssetsResponse = await client.ListAssetsAsync(startResponse.FrameworkId);
-            if (listAssetsResponse.Success)
-            {
-                Console.WriteLine($"📋 已加载资产列表: {listAssetsResponse.Assets.Count} 个资产");
-                foreach (var asset in listAssetsResponse.Assets)
-                {
-                    Console.WriteLine($"   - {asset.Name} ({asset.Type})");
-                }
-            }
-            
-            // 测试资产卸载
-            var unloadResponse = await client.UnloadAssetAsync(startResponse.FrameworkId, loadResponse.AssetId);
-            if (unloadResponse.Success)
-            {
-                Console.WriteLine("✅ 资产卸载成功");
-            }
-        }
-        else
-        {
-            Console.WriteLine($"❌ 资产加载失败: {loadResponse.ErrorMessage}");
-        }
-    }
-    
-    // 测试真实的场景操作 - 使用Core.ISceneService
-    Console.WriteLine("\n🎭 测试场景操作...");
-    
-    var cubeEntity = BrigineClient.CreateEntity(
-        "CubeEntity", 
-        "Mesh",
-        BrigineClient.CreateTransform(0, 0, 0, 0, 0, 0, 1, 1, 1, 1)
-    );
-    
-    var addResponse = await client.AddEntityToSceneAsync(
-        startResponse.FrameworkId,
-        cubeEntity
-    );
-    
-    if (addResponse.Success)
-    {
-        Console.WriteLine($"✅ 实体添加成功，ID: {addResponse.EntityId}");
-        
-        // 测试变换更新
-        var newTransform = BrigineClient.CreateTransform(
-            posX: 2.5f, posY: 1.0f, posZ: -0.5f,
-            rotY: 45.0f,
-            scaleX: 1.5f, scaleY: 1.5f, scaleZ: 1.5f
-        );
-        
-        var updateResponse = await client.UpdateEntityTransformAsync(
-            startResponse.FrameworkId,
-            addResponse.EntityId,
-            newTransform
-        );
-        
-        if (updateResponse.Success)
-        {
-            Console.WriteLine("✅ 实体变换更新成功");
-            Console.WriteLine($"   📍 新位置: ({newTransform.Position.X:F1}, {newTransform.Position.Y:F1}, {newTransform.Position.Z:F1})");
-            Console.WriteLine($"   🔄 新旋转: Y={newTransform.Rotation.Y:F1}°");
-            Console.WriteLine($"   📏 新缩放: ({newTransform.Scale.X:F1}, {newTransform.Scale.Y:F1}, {newTransform.Scale.Z:F1})");
-        }
-        
-        // 测试获取场景实体列表
-        var entitiesResponse = await client.GetSceneEntitiesAsync(startResponse.FrameworkId);
-        if (entitiesResponse.Success)
-        {
-            Console.WriteLine($"📋 场景实体列表: {entitiesResponse.Entities.Count} 个实体");
-            foreach (var entity in entitiesResponse.Entities)
-            {
-                Console.WriteLine($"   - {entity.Name} ({entity.Type}) [ID: {entity.EntityId[..8]}...]");
-            }
-        }
-        
-        // 测试实体信息获取
-        var entityInfoResponse = await client.GetEntityInfoAsync(startResponse.FrameworkId, addResponse.EntityId);
-        if (entityInfoResponse.Success)
-        {
-            Console.WriteLine($"ℹ️  实体详细信息: {entityInfoResponse.Entity.Name}");
-        }
-        
-        // 测试实体删除
-        var removeResponse = await client.RemoveEntityFromSceneAsync(startResponse.FrameworkId, addResponse.EntityId);
-        if (removeResponse.Success)
-        {
-            Console.WriteLine("✅ 实体删除成功");
-        }
-    }
-    else
-    {
-        Console.WriteLine($"❌ 实体添加失败: {addResponse.ErrorMessage}");
-    }
-    
-    // 停止框架
-    Console.WriteLine("\n🛑 停止框架...");
-    var stopResponse = await client.StopFrameworkAsync(startResponse.FrameworkId);
-    if (stopResponse.Success)
-    {
-        Console.WriteLine("✅ 框架停止成功");
-    }
-    else
-    {
-        Console.WriteLine($"❌ 框架停止失败: {stopResponse.ErrorMessage}");
-    }
-    
-    Console.WriteLine("\n🎉 所有测试完成!");
-}
-catch (Grpc.Core.RpcException rpcEx)
-{
-    Console.WriteLine($"❌ gRPC连接错误: {rpcEx.Status}");
-    Console.WriteLine("💡 请确保Brigine服务器正在运行: dotnet run (在Brigine.Communication.Server目录)");
+    await RunDataServiceTest();
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"❌ 测试失败: {ex.Message}");
-    Console.WriteLine($"📄 详细信息: {ex}");
+    Console.WriteLine($"❌ 测试执行失败: {ex.Message}");
+    Console.WriteLine($"详细错误: {ex}");
 }
 
-Console.WriteLine("\n⌨️  按任意键退出...");
-Console.ReadKey(); 
+static async Task RunDataServiceTest()
+{
+    // 创建客户端 - 连接到新的数据服务
+    using var client = new BrigineClient("http://localhost:50051");
+    
+    Console.WriteLine("✅ 连接到Brigine数据服务器...");
+    
+    // 1. 创建协作会话
+    Console.WriteLine("\n🚀 创建协作会话...");
+    var createSessionResponse = await client.CreateSessionAsync(
+        "TestProject", 
+        "TestUser1",
+        new Dictionary<string, string> 
+        { 
+            { "description", "数据即服务架构测试" },
+            { "version", "2.0" }
+        }
+    );
+    
+    if (!createSessionResponse.Success)
+    {
+        Console.WriteLine($"❌ 会话创建失败: {createSessionResponse.ErrorMessage}");
+        return;
+    }
+    
+    var sessionId = createSessionResponse.SessionId;
+    Console.WriteLine($"✅ 会话创建成功，ID: {sessionId}");
+    Console.WriteLine($"📋 项目名称: {createSessionResponse.SessionInfo.ProjectName}");
+    Console.WriteLine($"👤 创建者: {createSessionResponse.SessionInfo.CreatorId}");
+    
+    // 2. 加入会话
+    Console.WriteLine("\n👥 加入协作会话...");
+    var joinResponse = await client.JoinSessionAsync(
+        sessionId, 
+        "TestUser1", 
+        "Unity",
+        new Dictionary<string, string> 
+        { 
+            { "version", "2023.3" },
+            { "platform", "Windows" }
+        }
+    );
+    
+    if (!joinResponse.Success)
+    {
+        Console.WriteLine($"❌ 加入会话失败: {joinResponse.ErrorMessage}");
+        return;
+    }
+    
+    Console.WriteLine($"✅ 成功加入会话");
+    Console.WriteLine($"👥 当前用户数: {joinResponse.ActiveUsers.Count}");
+    foreach (var user in joinResponse.ActiveUsers)
+    {
+        Console.WriteLine($"   - {user.DisplayName} ({user.ClientType}) - {user.Status}");
+    }
+    
+    // 3. 启动会话事件监听
+    Console.WriteLine("\n🎧 启动会话事件监听...");
+    var sessionEventCancellation = new CancellationTokenSource();
+    
+    var sessionEventTask = Task.Run(async () =>
+    {
+        try
+        {
+            await client.StartSessionEventsAsync(sessionId, "TestUser1", (sessionEvent) =>
+            {
+                Console.WriteLine($"📡 会话事件: {sessionEvent.EventType} | 用户: {sessionEvent.UserId} | 时间: {DateTimeOffset.FromUnixTimeSeconds(sessionEvent.Timestamp):HH:mm:ss}");
+            }, sessionEventCancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("🔇 会话事件监听已正常取消");
+        }
+        catch (Grpc.Core.RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Cancelled)
+        {
+            Console.WriteLine("🔇 会话事件监听已正常取消");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ 会话事件监听错误: {ex.Message}");
+        }
+    });
+    
+    // 4. 启动场景变更事件监听
+    Console.WriteLine("🎧 启动场景变更事件监听...");
+    var sceneEventCancellation = new CancellationTokenSource();
+    
+    var sceneEventTask = Task.Run(async () =>
+    {
+        try
+        {
+            await client.StartSceneEventsAsync(sessionId, "TestUser1", (sceneEvent) =>
+            {
+                Console.WriteLine($"🎭 场景事件: {sceneEvent.ChangeType} | 实体: {sceneEvent.EntityId} | 用户: {sceneEvent.UserId}");
+            }, sceneEventCancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("🔇 场景事件监听已正常取消");
+        }
+        catch (Grpc.Core.RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Cancelled)
+        {
+            Console.WriteLine("🔇 场景事件监听已正常取消");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ 场景事件监听错误: {ex.Message}");
+        }
+    });
+    
+    Console.WriteLine("✅ 事件监听已启动");
+    
+    // 5. 测试场景数据操作
+    Console.WriteLine("\n🎭 测试场景数据操作...");
+    
+    // 创建多个实体
+    var entityIds = new List<string>();
+    
+    for (int i = 1; i <= 3; i++)
+    {
+        var entity = BrigineClient.CreateEntity(
+            $"DataTestEntity_{i}", 
+            "Mesh",
+            BrigineClient.CreateTransform(
+                i * 2.0f, 1.0f, 0.0f, 
+                0, i * 30.0f, 0, 1, 
+                1.0f + i * 0.2f, 1.0f + i * 0.2f, 1.0f + i * 0.2f
+            ),
+            null,
+            new Dictionary<string, PropertyValue>
+            {
+                { "material", new PropertyValue { StringValue = $"Material_{i}" } },
+                { "visible", new PropertyValue { BoolValue = true } },
+                { "priority", new PropertyValue { IntValue = i } }
+            }
+        );
+        
+        var createResponse = await client.CreateEntityAsync(sessionId, "TestUser1", entity);
+        
+        if (createResponse.Success)
+        {
+            entityIds.Add(createResponse.EntityId);
+            Console.WriteLine($"✅ 创建实体 {i}: {createResponse.EntityId[..8]}... (版本: {createResponse.Version})");
+            
+            // 等待一下让事件处理
+            await Task.Delay(500);
+        }
+        else
+        {
+            Console.WriteLine($"❌ 创建实体 {i} 失败: {createResponse.ErrorMessage}");
+        }
+    }
+    
+    // 6. 测试实体查询
+    Console.WriteLine("\n🔍 测试实体查询...");
+    
+    var query = BrigineClient.CreateQuery(
+        types: new[] { "Mesh" },
+        limit: 10
+    );
+    
+    var queryResponse = await client.QueryEntitiesAsync(sessionId, query);
+    if (queryResponse.Success)
+    {
+        Console.WriteLine($"📊 查询到 {queryResponse.Entities.Count} 个Mesh实体:");
+        foreach (var entity in queryResponse.Entities)
+        {
+            Console.WriteLine($"   - {entity.Name} [ID: {entity.EntityId[..8]}...] 版本: {entity.Metadata.Version}");
+            Console.WriteLine($"     位置: ({entity.Transform.Position.X:F1}, {entity.Transform.Position.Y:F1}, {entity.Transform.Position.Z:F1})");
+            Console.WriteLine($"     属性: {entity.Properties.Count} 个");
+        }
+    }
+    
+    // 7. 测试实体锁定
+    Console.WriteLine("\n🔒 测试实体锁定机制...");
+    
+    if (entityIds.Count > 0)
+    {
+        var lockResponse = await client.LockEntityAsync(sessionId, "TestUser1", entityIds[0], LockType.Exclusive);
+        if (lockResponse.Success)
+        {
+            Console.WriteLine($"✅ 成功锁定实体: {entityIds[0][..8]}...");
+            Console.WriteLine($"🔐 锁定类型: {lockResponse.LockInfo.LockType}");
+            Console.WriteLine($"⏰ 锁定时间: {DateTimeOffset.FromUnixTimeSeconds(lockResponse.LockInfo.AcquiredTime):HH:mm:ss}");
+            
+            // 更新被锁定的实体
+            var lockedEntity = BrigineClient.CreateEntity(
+                "UpdatedEntity", 
+                "Mesh",
+                BrigineClient.CreateTransform(10, 5, 0)
+            );
+            lockedEntity.EntityId = entityIds[0];
+            
+            var updateResponse = await client.UpdateEntityAsync(sessionId, "TestUser1", lockedEntity);
+            if (updateResponse.Success)
+            {
+                Console.WriteLine($"✅ 更新锁定实体成功 (版本: {updateResponse.Version})");
+            }
+            
+            // 解锁实体
+            var unlockResponse = await client.UnlockEntityAsync(sessionId, "TestUser1", entityIds[0]);
+            if (unlockResponse.Success)
+            {
+                Console.WriteLine($"🔓 成功解锁实体");
+            }
+        }
+    }
+    
+    // 8. 测试批量操作
+    Console.WriteLine("\n📦 测试批量操作...");
+    
+    var operations = new List<EntityOperation>();
+    
+    // 创建批量操作
+    for (int i = 4; i <= 5; i++)
+    {
+        var entity = BrigineClient.CreateEntity(
+            $"BatchEntity_{i}", 
+            "Light",
+            BrigineClient.CreateTransform(i * 3.0f, 2.0f, 0.0f)
+        );
+        
+        operations.Add(new EntityOperation
+        {
+            OperationType = OperationType.Create,
+            Entity = entity
+        });
+    }
+    
+    var batchResponse = await client.BatchUpdateAsync(sessionId, "TestUser1", operations);
+    if (batchResponse.Success)
+    {
+        Console.WriteLine($"✅ 批量操作成功 (版本: {batchResponse.Version})");
+        Console.WriteLine($"📋 操作结果: {batchResponse.Results.Count} 个");
+        foreach (var result in batchResponse.Results)
+        {
+            if (result.Success)
+            {
+                Console.WriteLine($"   ✅ 实体: {result.EntityId[..8]}...");
+            }
+            else
+            {
+                Console.WriteLine($"   ❌ 失败: {result.ErrorMessage}");
+            }
+        }
+    }
+    
+    // 9. 获取最终场景状态
+    Console.WriteLine("\n📋 获取最终场景状态...");
+    
+    var sceneDataResponse = await client.GetSceneDataAsync(sessionId);
+    if (sceneDataResponse.Success)
+    {
+        var sceneData = sceneDataResponse.SceneData;
+        Console.WriteLine($"🎭 场景: {sceneData.Name} (版本: {sceneData.Version})");
+        Console.WriteLine($"📊 总实体数: {sceneData.Entities.Count}");
+        
+        var entityTypes = sceneData.Entities.GroupBy(e => e.Type).ToDictionary(g => g.Key, g => g.Count());
+        foreach (var kvp in entityTypes)
+        {
+            Console.WriteLine($"   - {kvp.Key}: {kvp.Value} 个");
+        }
+    }
+    
+    // 10. 清理和离开会话
+    Console.WriteLine("\n🧹 清理资源...");
+    
+    // 取消事件监听
+    sessionEventCancellation.Cancel();
+    sceneEventCancellation.Cancel();
+    
+    // 等待事件监听任务完成
+    try
+    {
+        await Task.WhenAll(sessionEventTask, sceneEventTask);
+    }
+    catch (OperationCanceledException)
+    {
+        // 预期的取消异常，正常情况
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ 清理过程中的异常: {ex.Message}");
+    }
+    
+    // 离开会话
+    var leaveResponse = await client.LeaveSessionAsync(sessionId, "TestUser1");
+    if (leaveResponse.Success)
+    {
+        Console.WriteLine("✅ 成功离开会话");
+    }
+    else
+    {
+        Console.WriteLine($"⚠️ 离开会话失败: {leaveResponse.ErrorMessage}");
+    }
+    
+    Console.WriteLine("\n🎉 数据即服务架构测试完成！");
+    Console.WriteLine("✨ 新架构特点:");
+    Console.WriteLine("   - 会话中心的协作管理");
+    Console.WriteLine("   - 纯数据的场景同步");
+    Console.WriteLine("   - 实时事件驱动更新");
+    Console.WriteLine("   - 智能锁定机制");
+    Console.WriteLine("   - 高效批量操作");
+} 

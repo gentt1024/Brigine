@@ -8,6 +8,7 @@
 
 - **✅ 核心架构**: 95% 完成
 - **✅ gRPC通信**: 90% 完成  
+- **✅ 构建自动化**: 100% 完成
 - **🔄 Unity集成**: 20% 完成
 - **🔄 Godot集成**: 15% 完成
 - **❌ USD支持**: 10% 完成
@@ -67,6 +68,26 @@ src/
 - **✅ AssetService**: 资产加载和管理
 - **✅ SceneService**: 场景实体操作
 - **✅ 数据类型**: Transform、Entity、AssetInfo等
+
+### 4. ✅ 构建自动化系统 (完成)
+
+#### DLL自动拷贝
+- **✅ PowerShell脚本**: 自动拷贝Core项目DLL到Unity包
+- **✅ MSBuild集成**: 构建后事件自动触发
+- **✅ 多框架支持**: .NET 8.0和.NET Standard 2.1
+- **✅ Git管理**: .gitignore规则，DLL文件不纳入版本控制
+
+#### 支持的文件
+- **✅ Brigine.Core.dll + .pdb**
+- **✅ Brigine.Communication.Client.dll + .pdb**
+- **✅ Brigine.Communication.Protos.dll + .pdb**
+- **✅ Brigine.USD.dll + .pdb**
+- **✅ USD.NET.dll** (从NuGet依赖)
+
+#### 使用方式
+- **✅ 自动触发**: 编译Core项目时自动拷贝
+- **✅ 手动执行**: PowerShell脚本和批处理文件
+- **✅ 配置灵活**: 支持Debug/Release，多目标框架
 
 ## 🔄 进行中的功能
 

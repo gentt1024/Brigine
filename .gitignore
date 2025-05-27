@@ -424,8 +424,18 @@ $RECYCLE.BIN/
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Unity
-*.meta
+# Unity - 不再全局忽略.meta文件，让Unity正确管理引用关系
 
 # private
 private/
+
+# Unity Package - 忽略从Core项目自动拷贝的DLL文件
+engine_packages/com.brigine.unity/Runtime/*.dll
+engine_packages/com.brigine.unity/Runtime/*.pdb
+
+# Unity Package - 忽略USD相关的native库文件
+engine_packages/com.brigine.unity/Runtime/Runtime/
+engine_packages/com.brigine.unity/Runtime/Runtime/**/*
+
+# 忽略Unity包内部的.gitignore文件（使用项目根目录统一管理）
+engine_packages/com.brigine.unity/.gitignore

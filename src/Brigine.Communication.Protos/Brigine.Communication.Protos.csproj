@@ -33,4 +33,12 @@
     <Protobuf Include="Protos\*.proto" GrpcServices="Both" />
   </ItemGroup>
 
+  <!-- 构建后事件：自动拷贝DLL到Unity包 -->
+  <Target Name="CopyDllsToUnity" AfterTargets="Build">
+      <Message Text="开始拷贝Communication.Protos DLL到Unity包..." Importance="high" />
+      <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\scripts\CopyDllsToUnity.ps1&quot; -Configuration $(Configuration) -TargetFramework $(TargetFramework)" 
+            ContinueOnError="true" 
+            IgnoreExitCode="false" />
+  </Target>
+
 </Project> 

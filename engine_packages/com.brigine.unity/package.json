@@ -1,0 +1,21 @@
+{
+  "name": "com.brigine.unity",
+  "version": "1.0.0",
+  "displayName": "Brigine Unity Integration",
+  "description": "Unity integration package for Brigine cross-engine collaboration framework",
+  "unity": "2021.3",
+  "unityRelease": "0f1",
+  "documentationUrl": "https://github.com/your-repo/brigine",
+  "changelogUrl": "https://github.com/your-repo/brigine/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/your-repo/brigine/blob/main/LICENSE.md",
+  "keywords": [
+    "brigine",
+    "cross-engine",
+    "collaboration",
+    "usd",
+    "grpc"
+  ],
+  "author": {
+    "name": "Brigine Team"
+  }
+} 
